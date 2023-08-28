@@ -8,24 +8,9 @@
 
 ### Branch - main
 
-This branch simulates architecture #1 in our paper. There are two main files simulating the linear and non-linear cases respectively.
+*MC_sim class contains all generations of simulated trajectories, parameter estimation via MLE method and the KalmanNet architecture, Kalman filter application functions for both methods, as well as calculations of MSE for both methods.
 
-* Linear case
-
-```
-python3 main_linear.py
-```
-
-* Non-linear Lorenz Attractor(LA) case
-
-```
-python3 main_lorenz.py
-```
-
-* Non-linear pendulum, toy problem or real-world NCLT case
-
-change the path_model parameter in filling_paths.py accordingly and then run main_lorenz.py.
-
+*run_mc_mle is the main run file.
 
 ### Branch - new_architecture
 
