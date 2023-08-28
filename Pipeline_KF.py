@@ -159,7 +159,8 @@ class Pipeline_KF:
         self.N_T = n_Test
 
         self.MSE_test_linear_arr = torch.empty([self.N_T])
-
+        MSE_test_linear_arr = torch.empty([self.N_T])
+        
         # MSE LOSS Function
         loss_fn = nn.MSELoss(reduction='mean')
 
@@ -171,29 +172,35 @@ class Pipeline_KF:
         
         start = time.time()
 
+        x_out_test = torch.empty(n_Test, self.ssModel.m, self.ssModel.T)
+        
         for j in range(0, self.N_T):
 
             y_mdl_tst = test_input[j, :, :]
 
             self.model.InitSequence(self.ssModel.m1x_0)
 
-            x_out_test = torch.empty(self.ssModel.m, self.ssModel.T)
-
+            
             for t in range(0, self.ssModel.T):
-                x_out_test[:, t] = self.model(y_mdl_tst[:, t])
+                x_out_test[j, :, t] = self.model(y_mdl_tst[:, t])
 
-            self.MSE_test_linear_arr[j] = loss_fn(x_out_test, test_target[j, :, :]).item()
-
+            self.MSE_test_linear_arr[j] = loss_fn(x_out_test[j,:,:] , test_target[j, :, :]).item()
+            MSE_test_linear_arr[j] = loss_fn(x_out_test[j,:,:], test_target[j, :, :]).item()
+            
         end = time.time()
         t = end - start
 
         # Average
         self.MSE_test_linear_avg = torch.mean(self.MSE_test_linear_arr)
         self.MSE_test_dB_avg = 10 * torch.log10(self.MSE_test_linear_avg)
-
+        
+        MSE_test_linear_avg = torch.mean(self.MSE_test_linear_arr) #BH
+        
+    
         # Standard deviation
         self.MSE_test_dB_std = torch.std(self.MSE_test_linear_arr, unbiased=True)
         self.MSE_test_dB_std = 10 * torch.log10(self.MSE_test_dB_std)
+
 
         # Print MSE Cross Validation
         str = self.modelName + "-" + "MSE Test:"

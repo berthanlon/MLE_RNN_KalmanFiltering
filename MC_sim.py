@@ -54,12 +54,13 @@ m1_0 = torch.zeros((m,1), dtype=torch.float32).to(dev)
 m2_0 = 0 * 0 * torch.eye(m).to(dev)
 
 # Number of Training Examples
-N_E = 1000
+N_E = 100
 
 # Number of Cross Validation Examples
-N_CV = 100
+N_CV = 10
 
-N_T = 200
+# NUmber of test examples
+N_T = 25
 
 
 class MonteCarloSimulation:
@@ -80,6 +81,9 @@ class MonteCarloSimulation:
         self.X_diff_Q_sum = np.array([])
         self.kalman_est = np.array([])
         self.kalman_est_o = np.array([])
+        self.mle_K_est_out = np.array([])
+        self.KNet_est_out = np.array([])
+        self.test_target = np.array([])
         self.folderName = "C:/Users/sgbhanlo/Documents/KalmanNet_TSP-main/KNetFiles"
         self.seed = seed if seed > 0 else 0
         self.mean_ini = mean_ini
@@ -119,6 +123,7 @@ class MonteCarloSimulation:
         # Generate the complete trajectory and measurements
         for k in range(1, self.nSteps):
             # Propagate the true state
+            
             self.X_true[:, k] = np.dot(F,  self.X_true[:, k-1]) + np.dot(chol_Q, np.random.randn(4))
             
             # Generate measurement (adding noise with rms = 1, see r above)
@@ -255,6 +260,11 @@ class MonteCarloSimulation:
         
         n_points = 0.0
         
+        print('test target shape', test_target.shape)
+        
+        kalman_est = np.zeros((test_target.shape[0], 4, self.nSteps))   # state estimate
+        
+        
         for s in range(0, test_target.shape[0]):
             
             x_k = mean_ini # initial state estimate
@@ -262,12 +272,14 @@ class MonteCarloSimulation:
             P_k = P_ini # initial covariance estimate
             P_k_o = P_ini
 
-            kalman_est = np.zeros((4, self.nSteps)) # state estimate
             kalman_est_o = np.zeros((4, self.nSteps))
             
             X_true_gen = test_target[s,:,:].numpy()
+            #print('x_treue_gen', X_true_gen)
             measurements_gen = test_input[s,:,:].numpy()
             
+            
+            #print('test input shape', test_input.shape)
             for k in range(0, test_target.shape[2]):    
                 # Update step
                 K_gain = P_k @ H.T @ np.linalg.inv( (H @ P_k @ H.T) + self.R_est)
@@ -280,9 +292,10 @@ class MonteCarloSimulation:
                 P_u = (np.eye(4) - K_gain @ H) @ P_k # updated covariance estimate
                 P_u_o = (np.eye(4) - K_gain_orig @ H) @ P_k_o
                 
-                kalman_est[:, k] = x_u # Filtered estimate kalman_est = x_u
+                kalman_est[s, :, k] = x_u # Filtered estimate kalman_est = x_u
                 kalman_est_o[:, k] = x_u_orig
                         
+                
                 # Predict step
             
                 x_k = F @ x_u      # predicted state estimate
@@ -292,9 +305,16 @@ class MonteCarloSimulation:
                 P_k_o = F @ P_u_o @ F.T + Q # predicted covariance estimate
                 
                 n_points+=1.0
-                
+            
+        self.mle_K_est_out = kalman_est
+        self.test_target = test_target.numpy()
+        print('mle_K_est_out shape', self.mle_K_est_out.shape)
+        print('test target shape mle', self.test_target.shape)
+        
+            
+        #print('kalman est', kalman_est)
         print(f"loading data and applying KalmanFilter - DONE, n_points = {n_points}")
-
+            
     
             
     def applyKalmanFilterKNet(
@@ -306,7 +326,69 @@ class MonteCarloSimulation:
         KNet_Pipeline = torch.load(KNet_Pipeline.PipelineName)
         [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader(self.dataFilename)
         print("KNet_Pipeline=", KNet_Pipeline)
-        KNet_Pipeline.NNTest(test_target.shape[0], test_input, test_target)
-        print("Kalman Filter KNET done")
+        [MSE_test_linear_arr, MSE_test_linear_avg, MSE_test_dB_avg, x_out_test] = KNet_Pipeline.NNTest(test_target.shape[0], test_input, test_target) 
+        #print('MSEavg', KNet_Pipeline.MSE_test_linear_arr)
+        #print('MSEavgShape', KNet_Pipeline.MSE_test_linear_arr.shape)
+    
+        self.KNet_est_out = x_out_test.detach().numpy()
+        self.test_target = test_target.numpy()
+        print("Kalman Filter KNET done shape", self.KNet_est_out.shape)
         
+    def computeMSEsForSequences(
+            self,
+            X_True: np.array,
+            X_gen: np.array,
+            ) -> np.array:
+        
+        """
+        creates MSE values based on residuals between ground truths and output sequences
+        """
+        
+        mse_T = np.zeros(X_True.shape[2])
+        print('mse_T initialised with shape = ', mse_T.shape)
+        
+        for t in range(0, X_True.shape[2]):
+        
+            resid_squaresum = 0.0
             
+            for s in range(0, X_True.shape[0]):
+             
+                X_True_ssvec = X_True[s,:,t]
+                X_gen_ssvec = X_gen[s,:,t]
+                
+                resid_x = X_gen_ssvec[0] - X_True_ssvec[0]
+                resid_y = X_gen_ssvec[2] - X_True_ssvec[2]
+                 
+                resid_squaresum += resid_x**2 + resid_y**2
+         
+            rmse = np.sqrt( resid_squaresum / X_True.shape[0]) 
+            
+            mse_T[t] = rmse 
+        
+        return mse_T
+        
+    
+        #print(f"rmse:\n{rmse}")
+       # plt.plot(range(2, n_steps+1), rmse[1:n_steps])
+
+    
+    def computeMSEMaxLk(
+            self
+            ) -> np.array:
+        
+        """
+        computes MSE values for Maximum liklihood method
+        """
+        return self.computeMSEsForSequences(self.test_target, self.mle_K_est_out )
+        
+        
+    def computeMSEKNet(
+            self
+            ) -> np.array:
+        
+        """
+        computes MSE values for KNet method
+        """
+        
+        return self.computeMSEsForSequences(self.test_target, self.KNet_est_out)
+        
