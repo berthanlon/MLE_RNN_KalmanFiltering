@@ -8,9 +8,9 @@
 
 ### Branch - main
 
-*MC_sim class contains all generations of simulated trajectories, parameter estimation via MLE method and the KalmanNet architecture, Kalman filter application functions for both methods, as well as calculations of MSE for both methods.
+ * MC_sim class contains all generations of simulated trajectories, parameter estimation via MLE method and the KalmanNet architecture, Kalman filter application functions for both methods, as well as calculations of MSE for both methods.
 
-*run_mc_mle is the main run file.
+ * run_mc_mle is the main run file.
 
 ### Branch - new_architecture
 
