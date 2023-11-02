@@ -1,6 +1,7 @@
 import torch
 import math
 import os
+import numpy as np
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 if torch.cuda.is_available():
@@ -15,7 +16,7 @@ else:
 #######################
 
 # Number of Training Examples
-N_E = 1000
+N_E = 100
 
 # Number of Cross Validation Examples
 N_CV = 100
@@ -116,6 +117,8 @@ def DataGen(SysModel_data, fileName, T, T_test,randomInit=False):
     training_input = SysModel_data.Input
     training_target = SysModel_data.Target
 
+    print('training_input_sum', training_input)
+    print('training_target_sum', training_target)
     ####################################
     ### Generate Validation Sequence ###
     ####################################
@@ -133,6 +136,7 @@ def DataGen(SysModel_data, fileName, T, T_test,randomInit=False):
     #################
     ### Save Data ###
     #################
+    print('training_target')
     torch.save([training_input, training_target, cv_input, cv_target, test_input, test_target], fileName)
 
 def DataLoader(fileName):

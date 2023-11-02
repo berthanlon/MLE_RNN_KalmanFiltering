@@ -24,7 +24,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]]) # state transition matrix
-sigma_u = 0.5 # standard deviation of the acceleration
+sigma_u = 0.1 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -36,7 +36,7 @@ r = 1.0 #rms of standard normal dist
 # Measurement model
 H = np.array([[1, 0, 0, 0],
               [0, 0, 1, 0]]) # measurement matrix
-R = 0.5 * np.diag([1, 1]) # covariance of the measurement noise
+R = 0.5 * np.diag([1, 1]) # covariance of the measurement noise ###
 chol_R = np.linalg.cholesky(R) # Cholesky decomposition of R
 
 ##initisalisng space on device (CPU)
@@ -129,6 +129,7 @@ class MonteCarloSimulation:
             # Generate measurement (adding noise with rms = 1, see r above)
             self.measurements[:, k] = np.dot(H, self.X_true[:, k]) + np.dot(chol_R, np.random.randn(2))
      
+               
     def generateSequenceTorch(
             self
             ) -> None:
@@ -343,9 +344,10 @@ class MonteCarloSimulation:
         """
         creates MSE values based on residuals between ground truths and output sequences
         """
-        
+    
         mse_T = np.zeros(X_True.shape[2])
         print('mse_T initialised with shape = ', mse_T.shape)
+        #print('X_gen.shape', X_gen.shape)
         
         for t in range(0, X_True.shape[2]):
         
@@ -362,6 +364,7 @@ class MonteCarloSimulation:
                 resid_squaresum += resid_x**2 + resid_y**2
          
             rmse = np.sqrt( resid_squaresum / X_True.shape[0]) 
+            
             
             mse_T[t] = rmse 
         
@@ -380,6 +383,7 @@ class MonteCarloSimulation:
         computes MSE values for Maximum liklihood method
         """
         return self.computeMSEsForSequences(self.test_target, self.mle_K_est_out )
+    
         
         
     def computeMSEKNet(
@@ -391,4 +395,24 @@ class MonteCarloSimulation:
         """
         
         return self.computeMSEsForSequences(self.test_target, self.KNet_est_out)
+     
+    def computeAverageMSEMLE(
+            self,
+            ) -> int:
+        """
+        Computes average MSE across each timestep for maximum liklihood method
+        """
+        mean_mse_mle = np.mean(self.computeMSEsForSequences(self.test_target, self.mle_K_est_out ))
         
+        return mean_mse_mle
+    
+    def computeAverageMSEKNet(
+            self,
+            ) -> int:
+        """
+        Computes average MSE across each timestep for Kalman Net method
+        """
+        
+        mean_mse_knet = np.mean(self.computeMSEsForSequences(self.test_target, self.KNet_est_out))
+        
+        return mean_mse_knet
