@@ -16,7 +16,7 @@ else:
 #######################
 
 # Number of Training Examples
-N_E = 100
+N_E = 200
 
 # Number of Cross Validation Examples
 N_CV = 100
@@ -141,6 +141,7 @@ def DataGen(SysModel_data, fileName, T, T_test,randomInit=False):
 
 def DataLoader(fileName):
 
+    print('Loading datafile name', fileName)
     [training_input, training_target, cv_input, cv_target, test_input, test_target] = torch.load(fileName, map_location=dev)
     return [training_input, training_target, cv_input, cv_target, test_input, test_target]
 

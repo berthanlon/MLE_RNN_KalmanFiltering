@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Run Monte Carloes
+Created on Wed Nov 15 13:52:39 2023
+
+@author: sgbhanlo
 """
+######## RUN ON CPU VERSION 
+
+
 import MC_sim 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,20 +14,20 @@ import torch
 import pandas as pd
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument('mode')
-args = parser.parse_args()
+#parser = argparse.ArgumentParser()
+#parser.add_argument('mode')
+#args = parser.parse_args()
 
-mode = args.mode
+mode = 'plot' # args.mode
 print(f"mode = '{mode}'")
 base_dir = 'C:/Users/sgbhanlo/Documents/KalmanNet_TSP-main/KNetFiles/'
 fname_base = 'MCSim_test'
-n_steps = 30
+n_steps = 50
 ###resid_squaresum = np.zeros(n_steps)
 
 startTS = pd.Timestamp.utcnow()
 
-fname_data = fname_base + '_data'
+fname_data = fname_base + '_data50'
 fname_mse_KNet = base_dir + fname_base + '_KNet'
 fname_mse_MLE = base_dir + fname_base + '_MLE'
 fname_plot = base_dir + fname_base + '_plot'
@@ -78,6 +83,4 @@ elif mode == 'plot':
     plt.savefig(fname_plot)
     plt.show()
     print("generating plots done")
- 
-    
  

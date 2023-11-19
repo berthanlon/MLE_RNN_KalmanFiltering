@@ -24,7 +24,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]]) # state transition matrix
-sigma_u = 0.1 # standard deviation of the acceleration    ####
+sigma_u = 0.5 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -67,6 +67,7 @@ class MonteCarloSimulation:
     def __init__(
             self,
             nSteps: int, 
+            fileName: str,
             seed: int = 0,
             ) -> None:
         self.nSteps = nSteps
@@ -84,10 +85,10 @@ class MonteCarloSimulation:
         self.mle_K_est_out = np.array([])
         self.KNet_est_out = np.array([])
         self.test_target = np.array([])
-        self.folderName = "C:/Users/sgbhanlo/Documents/KalmanNet_TSP-main/KNetFiles"
+        self.folderName = "C:/Users/sgbhanlo/Documents/KalmanNet_TSP-main/KNetFiles/"
         self.seed = seed if seed > 0 else 0
         self.mean_ini = mean_ini
-        self.dataFilename = self.folderName + "MCsim_test_data"
+        self.dataFilename = self.folderName + fileName
         
         today = datetime.today()
         now = datetime.now()
@@ -95,7 +96,7 @@ class MonteCarloSimulation:
         strNow = now.strftime("%H:%M:%S")
         self.strTime = strToday + "_" + strNow
         print("Current Time =", self.strTime)
-        print('Initialised MC object')
+        print(f'Initialised MC object, nSteps = {nSteps}, fileName = {fileName}, seed = {seed}')
 
     def generateTrajectory(
             self, 
@@ -395,24 +396,5 @@ class MonteCarloSimulation:
         """
         
         return self.computeMSEsForSequences(self.test_target, self.KNet_est_out)
-     
-    def computeAverageMSEMLE(
-            self,
-            ) -> int:
-        """
-        Computes average MSE across each timestep for maximum liklihood method
-        """
-        mean_mse_mle = np.mean(self.computeMSEsForSequences(self.test_target, self.mle_K_est_out ))
-        
-        return mean_mse_mle
+
     
-    def computeAverageMSEKNet(
-            self,
-            ) -> int:
-        """
-        Computes average MSE across each timestep for Kalman Net method
-        """
-        
-        mean_mse_knet = np.mean(self.computeMSEsForSequences(self.test_target, self.KNet_est_out))
-        
-        return mean_mse_knet
