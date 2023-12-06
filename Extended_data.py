@@ -16,10 +16,10 @@ else:
 #######################
 
 # Number of Training Examples
-N_E = 200
+N_E = 1000
 
 # Number of Cross Validation Examples
-N_CV = 100
+N_CV = 100         #400
 
 N_T = 200
 
@@ -59,9 +59,9 @@ m = 2
 n = 2
 F = F10[0:m, 0:m]
 H = torch.eye(2)
-m1_0 = torch.tensor([[0.0], [0.0]]).to(dev)
+#m1_0 = torch.tensor([[0.0], [0.0]]).to(dev) BH
 # m1x_0_design = torch.tensor([[10.0], [-10.0]])
-m2_0 = 0 * 0 * torch.eye(m).to(dev)
+#m2_0 = 0 * 0 * torch.eye(m).to(dev)
 #m2_0 = torch.tensor([])
 
 
@@ -88,6 +88,7 @@ m2_0 = 0 * 0 * torch.eye(m).to(dev)
 # m2_0 = 0 * 0 * torch.eye(m).to(dev)
 
 # Inaccurate model knowledge based on matrix rotation
+'''
 alpha_degree = 10
 rotate_alpha = torch.tensor([alpha_degree/180*torch.pi]).to(dev)
 cos_alpha = torch.cos(rotate_alpha)
@@ -97,6 +98,7 @@ rotate_matrix = torch.tensor([[cos_alpha, -sin_alpha],
 # print(rotate_matrix)
 F_rotated = torch.mm(F,rotate_matrix) #inaccurate process model
 H_rotated = torch.mm(H,rotate_matrix) #inaccurate observation model
+'''
 
 def DataGen_True(SysModel_data, fileName, T):
 

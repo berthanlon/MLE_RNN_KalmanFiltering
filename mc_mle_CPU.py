@@ -5,12 +5,13 @@ Created on Wed Nov 15 13:52:39 2023
 @author: sgbhanlo
 """
 ######## RUN ON CPU VERSION 
-
+import torch
+torch.use_deterministic_algorithms(True)
+torch.set_default_dtype(torch.float64)
 
 import MC_sim 
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
 import pandas as pd
 import argparse
 
@@ -18,30 +19,33 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-mode = 'plot' # args.mode
+n_steps = 200
+
+mode = 'knet' # args.mode
 print(f"mode = '{mode}'")
-base_dir = 'C:/Users/sgbhanlo/Documents/KalmanNet_TSP-main/KNetFiles/'
+base_dir = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'
-n_steps = 50
+
 ###resid_squaresum = np.zeros(n_steps)
 
 startTS = pd.Timestamp.utcnow()
 
-fname_data = fname_base + '_data50'
-fname_mse_KNet = base_dir + fname_base + '_KNet'
-fname_mse_MLE = base_dir + fname_base + '_MLE'
-fname_plot = base_dir + fname_base + '_plot'
+fname_data = fname_base + f'_data_{n_steps}'
+fname_mse_KNet = base_dir + fname_base + f'_KNet_{n_steps}'
+fname_mse_MLE = base_dir + fname_base + f'_MLE_{n_steps}'
+fname_plot = base_dir + fname_base + f'_plot_{n_steps}'
 
 if mode == 'datagen':        
     print("training mcs net")
-    mcs_train = MC_sim.MonteCarloSimulation(n_steps, fname_data, 314) 
+    mcs_train = MC_sim.MonteCarloSimulation(n_steps, base_dir, fname_data, 311) 
     mcs_train.generateTrajTrainKNet()
     endTS = pd.Timestamp.utcnow()
     print("training mcs net done, time taken =", endTS - startTS)
 
+
 elif mode == 'knet':
     print("computing mses for knet")
-    mcs_train = MC_sim.MonteCarloSimulation(n_steps, fname_data, 314)
+    mcs_train = MC_sim.MonteCarloSimulation(n_steps, base_dir, fname_data, 312)
     mcs_train.loadTrajTestKNet()
     mcs_train.applyKalmanFilterKNet()
     MSE_KNet = mcs_train.computeMSEKNet()
@@ -53,8 +57,7 @@ elif mode == 'knet':
 
 elif mode == 'mle':
     print("generating mcs estimate of Q and R")
-    mcs_est = MC_sim.MonteCarloSimulation(n_steps, fname_data, 314)
-#    mcs_est.generateTrajectory()
+    mcs_est = MC_sim.MonteCarloSimulation(n_steps, base_dir, fname_data, 313)
     mcs_est.generateEstimatesMaxLk()
     mcs_est.applyKalmanFilterMaxLk()
     MSE_maxLK = mcs_est.computeMSEMaxLk()
@@ -67,17 +70,17 @@ elif mode == 'mle':
 elif mode == 'plot':
     print("generating plots")
     MSE_KNet_torch = torch.load(fname_mse_KNet)
-    MSE_KNet = MSE_KNet_torch.numpy()
+    MSE_KNet = MSE_KNet_torch.cpu().numpy()
     
     MSE_maxLK_torch = torch.load(fname_mse_MLE)
-    MSE_maxLK = MSE_maxLK_torch.numpy()
+    MSE_maxLK = MSE_maxLK_torch.cpu().numpy()
     
     xarr = np.arange(n_steps)
     plt.plot(xarr, MSE_KNet, color = 'red', label = 'Kalman net')
     plt.plot(xarr, MSE_maxLK, color = 'blue', label = 'MLE')
     plt.title("KF MSE comparison with NN vs MLE learned parameters ")
     plt.xlabel('Time Step')
-    plt.ylabel('Average MSE')
+    plt.ylabel('Average RMSE')
     plt.legend()
     plt.grid()
     plt.savefig(fname_plot)

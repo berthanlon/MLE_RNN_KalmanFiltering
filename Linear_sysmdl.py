@@ -124,9 +124,6 @@ class SystemModel:
                     btdt = self.rayleigh_sigma*torch.sqrt(-2*torch.log(torch.rand(self.n,1)))
                     yt = torch.add(yt,btdt)
 
-            
-
-
             ########################
             ### Squeeze to Array ###
             ########################

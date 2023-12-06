@@ -11,7 +11,7 @@ from datetime import datetime
 from Linear_sysmdl import SystemModel
 from Pipeline_KF import Pipeline_KF
 from KalmanNet_nn import KalmanNetNN
-from Extended_data import DataGen, DataLoader
+from Extended_data import DataGen,DataLoader, DataLoader_GPU, N_E, N_CV, N_T
 
 mean_ini = np.array([0, 2, 0, 2])
 P_ini = np.diag([1, 0.1, 1, 0.1])
@@ -23,26 +23,27 @@ T = 0.5 # sampling time
 F = np.array([[1, T, 0, 0], 
               [0, 1, 0, 0],
               [0, 0, 1, T],
-              [0, 0, 0, 1]]) # state transition matrix
-sigma_u = 0.5 # standard deviation of the acceleration    ####
+              [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
+sigma_u = 0.005 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
-              [0, 0, T**2/2, T]]) * sigma_u**2 # covariance of the process noise
+              [0, 0, T**2/2, T]], dtype = np.float64) * sigma_u**2 # covariance of the process noise
 
 chol_Q = np.linalg.cholesky(Q) # Cholesky decomposition of Q
 r = 1.0 #rms of standard normal dist
 
 # Measurement model
 H = np.array([[1, 0, 0, 0],
-              [0, 0, 1, 0]]) # measurement matrix
-R = 0.5 * np.diag([1, 1]) # covariance of the measurement noise ###
+              [0, 0, 1, 0]], dtype = np.float64) # measurement matrix
+R = 0.5 * np.diag([1, 1]).astype(dtype= np.float64) # covariance of the measurement noise ###
 chol_R = np.linalg.cholesky(R) # Cholesky decomposition of R
 
 ##initisalisng space on device (CPU)
 if torch.cuda.is_available():
    dev = torch.device("cuda:0")  # you can continue going on here, like cuda:1 cuda:2....etc.
    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+   print('Running on CUDA')
 else:
    dev = torch.device("cpu")
    print("Running on the CPU")
@@ -50,23 +51,25 @@ else:
 m = 4
 n = 2
 
-m1_0 = torch.zeros((m,1), dtype=torch.float32).to(dev)
-m2_0 = 0 * 0 * torch.eye(m).to(dev)
+m1_0 = torch.zeros((m,1), dtype = torch.float64).to(dev) #dtype = torch.float32
+m2_0 = 0 * 0 * torch.eye(m, dtype = torch.float64).to(dev)
 
+print('M10,M20 DTYPE= ', m1_0.dtype, m2_0.dtype)
 # Number of Training Examples
-N_E = 100
+#N_E = 25
 
 # Number of Cross Validation Examples
-N_CV = 10
+#_CV = 25
 
 # NUmber of test examples
-N_T = 25
+#N_T = 25
 
 
 class MonteCarloSimulation:
     def __init__(
             self,
             nSteps: int, 
+            baseDir: str,
             fileName: str,
             seed: int = 0,
             ) -> None:
@@ -85,7 +88,7 @@ class MonteCarloSimulation:
         self.mle_K_est_out = np.array([])
         self.KNet_est_out = np.array([])
         self.test_target = np.array([])
-        self.folderName = "C:/Users/sgbhanlo/Documents/KalmanNet_TSP-main/KNetFiles/"
+        self.folderName = baseDir
         self.seed = seed if seed > 0 else 0
         self.mean_ini = mean_ini
         self.dataFilename = self.folderName + fileName
@@ -148,8 +151,8 @@ class MonteCarloSimulation:
     def getTrajectoryArraysTorch(
             self
             ) -> dict:
-        X_true_torch = torch.tensor(self.X_true, dtype = torch.float32)
-        measurements_torch = torch.tensor(self.measurements, dtype = torch.float32)
+        X_true_torch = torch.tensor(self.X_true)  #dtype = torch.float32
+        measurements_torch = torch.tensor(self.measurements) #dtype = torch.float32
         return {
                 "X_true": X_true_torch, 
                 "measurements": measurements_torch
@@ -169,8 +172,8 @@ class MonteCarloSimulation:
                 
         for s in range(0, training_target.shape[0]):
             
-            X_true_gen = training_target[s,:,:].numpy()
-            measurements_gen = training_input[s,:,:].numpy()
+            X_true_gen = training_target[s,:,:].cpu().numpy()
+            measurements_gen = training_input[s,:,:].cpu().numpy()
             
             for k in range(1, training_target.shape[2]): # starts from 1 because measurements start from 1
             
@@ -221,38 +224,40 @@ class MonteCarloSimulation:
         t = self.nSteps #to align with sys model T
         
         sys_model = SystemModel(
-            torch.tensor(F, dtype = torch.float32),
-            torch.tensor(Q, dtype = torch.float32),
-            torch.tensor(H, dtype = torch.float32),
-            torch.tensor(r, dtype = torch.float32),
+            torch.tensor(F), #dtype = torch.float32
+            torch.tensor(Q), #dtype = torch.float32
+            torch.tensor(H), #dtype = torch.float32
+            torch.tensor(r), #dtype = torch.float32
             t, t)
         sys_model.InitSequence(m1_0, m2_0)
         sys_model.SetTrajectoryGenerator(self)
-              
+             
+    
         print("Start KNet pipeline, KNet with full model info")
-        KNet_Pipeline = Pipeline_KF(self.strTime, self.folderName, "sysmodel")
+        KNet_Pipeline = Pipeline_KF(self.strTime, self.folderName, f"sysmodel_{self.nSteps}") #"sysmodel"
         KNet_Pipeline.setssModel(sys_model)
         KNet_model = KalmanNetNN()
         KNet_model.Build(sys_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs=500, n_Batch=30, learningRate=1E-3, weightDecay=1E-5)
-        
+        KNet_Pipeline.setTrainingParams(n_Epochs=100, n_Batch=30, learningRate=1E-3, weightDecay=1E-5)
+
         #Generate Training and validation sequences
         
         if modelTrain: 
             print("generating data and training model")
             DataGen(sys_model, self.dataFilename, t, t)
-            [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader(self.dataFilename)
+            [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader_GPU(self.dataFilename)
+            print('training_input, training_target, cv_input, cv_target, test_input, test_target', [training_input.shape, training_target.shape, cv_input.shape, cv_target.shape, test_input.shape, test_target.shape])
             KNet_Pipeline.NNTrain(N_E, training_input, training_target, N_CV, cv_input, cv_target)
             KNet_Pipeline.save()
             print(f"saved KNET pipeline-trained model, saved trained modelFileName = {KNet_Pipeline.modelFileName}")
         else:
             print(f"loading data and pretrained modelFileName = {KNet_Pipeline.modelFileName} and performing test")
-            [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader(self.dataFilename)
-            KNet_Pipeline.model = torch.load(KNet_Pipeline.modelFileName)            
+            [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader_GPU(self.dataFilename)
+            KNet_Pipeline.model = torch.load(KNet_Pipeline.modelFileName,map_location=dev) 
             [KNet_MSE_test_linear_arr, KNet_MSE_test_linear_avg, KNet_MSE_test_dB_avg, KNet_test] = KNet_Pipeline.NNTest(N_T, test_input, test_target)
-        
-        
+           
+            
     def applyKalmanFilterMaxLk(
             self
             ) -> None:
@@ -276,9 +281,9 @@ class MonteCarloSimulation:
 
             kalman_est_o = np.zeros((4, self.nSteps))
             
-            X_true_gen = test_target[s,:,:].numpy()
+            X_true_gen = test_target[s,:,:].cpu().numpy()
             #print('x_treue_gen', X_true_gen)
-            measurements_gen = test_input[s,:,:].numpy()
+            measurements_gen = test_input[s,:,:].cpu().numpy()
             
             
             #print('test input shape', test_input.shape)
@@ -309,7 +314,7 @@ class MonteCarloSimulation:
                 n_points+=1.0
             
         self.mle_K_est_out = kalman_est
-        self.test_target = test_target.numpy()
+        self.test_target = test_target.cpu().numpy()
         print('mle_K_est_out shape', self.mle_K_est_out.shape)
         print('test target shape mle', self.test_target.shape)
         
@@ -324,16 +329,16 @@ class MonteCarloSimulation:
             ) -> None:
   
         print("applying Kalman Filter KNET")
-        KNet_Pipeline = Pipeline_KF(self.strTime, self.folderName, "sysmodel")
-        KNet_Pipeline = torch.load(KNet_Pipeline.PipelineName)
+        KNet_Pipeline = Pipeline_KF(self.strTime, self.folderName, f"sysmodel_{self.nSteps}")
+        KNet_Pipeline = torch.load(KNet_Pipeline.PipelineName,map_location=dev)
         [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader(self.dataFilename)
         print("KNet_Pipeline=", KNet_Pipeline)
         [MSE_test_linear_arr, MSE_test_linear_avg, MSE_test_dB_avg, x_out_test] = KNet_Pipeline.NNTest(test_target.shape[0], test_input, test_target) 
-        #print('MSEavg', KNet_Pipeline.MSE_test_linear_arr)
-        #print('MSEavgShape', KNet_Pipeline.MSE_test_linear_arr.shape)
-    
-        self.KNet_est_out = x_out_test.detach().numpy()
-        self.test_target = test_target.numpy()
+        print('MSEavg', KNet_Pipeline.MSE_test_linear_arr)
+        print('MSEavgShape', KNet_Pipeline.MSE_test_linear_arr.shape)
+
+        self.KNet_est_out = x_out_test.detach().cpu().numpy()
+        self.test_target = test_target.cpu().numpy()
         print("Kalman Filter KNET done shape", self.KNet_est_out.shape)
         
     def computeMSEsForSequences(

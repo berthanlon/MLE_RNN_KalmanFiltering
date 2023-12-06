@@ -1,0 +1,3 @@
+Original - 100o training, 400 CV. 500epc
+
+n_Epochs=100, n_Batch=30, learningRate=1E-3, weightDecay=1E-5
