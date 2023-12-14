@@ -19,9 +19,9 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-n_steps = 200
+n_steps = 100
 
-mode = 'knet' # args.mode
+mode = 'mle' # args.mode
 print(f"mode = '{mode}'")
 base_dir = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'
@@ -51,6 +51,9 @@ elif mode == 'knet':
     MSE_KNet = mcs_train.computeMSEKNet()
     MSE_KNet_torch = torch.tensor(MSE_KNet)
     torch.save(MSE_KNet_torch, fname_mse_KNet)
+    
+    mcs_train.allTrajKNet()
+    
     average_KNet = np.mean(MSE_KNet)
     endTS = pd.Timestamp.utcnow()
     print(f"computing mses for knet done, time taken = {endTS - startTS}, average_KNet = {average_KNet}")
@@ -63,6 +66,9 @@ elif mode == 'mle':
     MSE_maxLK = mcs_est.computeMSEMaxLk()
     MSE_maxLK_torch = torch.tensor(MSE_maxLK)
     torch.save(MSE_maxLK_torch, fname_mse_MLE)
+    
+    mcs_est.allTrajMLE()
+    
     average_maxLK = np.mean(MSE_maxLK)
     endTS = pd.Timestamp.utcnow()
     print(f"generating mcs estimate of Q and R done, time taken = {endTS - startTS}, average_maxLK = {average_maxLK}")
@@ -86,4 +92,6 @@ elif mode == 'plot':
     plt.savefig(fname_plot)
     plt.show()
     print("generating plots done")
- 
+
+
+

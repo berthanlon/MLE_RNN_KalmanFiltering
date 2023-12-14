@@ -353,7 +353,9 @@ class MonteCarloSimulation:
     
         mse_T = np.zeros(X_True.shape[2])
         print('mse_T initialised with shape = ', mse_T.shape)
-        #print('X_gen.shape', X_gen.shape)
+        print('X_gen.shape', X_gen.shape)
+        
+        print('xtrue shape', X_True.shape)
         
         for t in range(0, X_True.shape[2]):
         
@@ -402,4 +404,63 @@ class MonteCarloSimulation:
         
         return self.computeMSEsForSequences(self.test_target, self.KNet_est_out)
 
+
+    def saveOutTraj(
+            self,
+            X_True: np.array,
+            X_gen: np.array,
+            ) -> None:
+        
+        plt.figure()
+        
+        print('xtrue shape', X_True.shape)
+        for s in range(0, 3): #X_True.shape[0]):
+            
+            X_True_ssvec = X_True[s,:,:]
+            X_gen_ssvec = X_gen[s,:,:]
+            
+            plt.plot(X_True_ssvec[0], X_True_ssvec[2])# label=f't={t}, s={s}')
+            plt.plot(X_gen_ssvec[0], X_gen_ssvec[2])# label=f't={t}, s={s}')
+            
+            print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
+                
+        plt.xlabel('X[0]')
+        plt.ylabel('X[2]')
+        plt.title('Superimposed Trajectories (True vs Generated)')
+        #plt.legend()  # Show a legend with labels for each trajectory
+        plt.show()
+        return 
     
+    def allTrajKNet(
+            self
+            ) -> None: 
+        
+        return self.saveOutTraj(self.test_target, self.KNet_est_out)
+    
+    
+    def allTrajMLE(
+            self
+            ) -> None: 
+        
+        return self.saveOutTraj(self.test_target, self.mle_K_est_out)
+            
+ #   X_gen_ssvec = X_gen[s,:,t]
+    
+"""    
+    def plotAllTrajectories(
+            self,
+            X_True: np.array,
+            X_gen: np.array,
+            ) -> None:
+        for t in range(0, X_True.shape[2]):
+            
+            for s in range(0, X_True.shape[0]):
+                
+                X_True_ssvec = X_True[s,:,t]
+                X_gen_ssvec = X_gen[s,:,t]
+                
+                plt.plot(X_gen_ssvec[0], X_gen_ssvec[2] )
+                plt.plot(X_True_ssvec[0], X_True_ssvec[2])
+                plt.show()
+        return 
+"""
