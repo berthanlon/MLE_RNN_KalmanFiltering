@@ -24,7 +24,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
-sigma_u = 0.005 # standard deviation of the acceleration    ####
+sigma_u = 0.001 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -132,7 +132,9 @@ class MonteCarloSimulation:
             
             # Generate measurement (adding noise with rms = 1, see r above)
             self.measurements[:, k] = np.dot(H, self.X_true[:, k]) + np.dot(chol_R, np.random.randn(2))
-     
+        
+        print('x_true_15', self.X_true[:, 1], 'shape=', self.X_true[:, 1].shape )
+        print('x_true_16', self.X_true[:, 2])
                
     def generateSequenceTorch(
             self
@@ -239,7 +241,7 @@ class MonteCarloSimulation:
         KNet_model = KalmanNetNN()
         KNet_model.Build(sys_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs=100, n_Batch=30, learningRate=1E-3, weightDecay=1E-5)
+        KNet_Pipeline.setTrainingParams(n_Epochs=450, n_Batch=50, learningRate=1E-4, weightDecay=1E-5)
 
         #Generate Training and validation sequences
         
@@ -414,7 +416,7 @@ class MonteCarloSimulation:
         plt.figure()
         
         print('xtrue shape', X_True.shape)
-        for s in range(0, 3): #X_True.shape[0]):
+        for s in range(0, 9): #X_True.shape[0]):
             
             X_True_ssvec = X_True[s,:,:]
             X_gen_ssvec = X_gen[s,:,:]

@@ -19,7 +19,7 @@ else:
 N_E = 1000
 
 # Number of Cross Validation Examples
-N_CV = 100         #400
+N_CV = 400
 
 N_T = 200
 

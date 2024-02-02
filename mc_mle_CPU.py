@@ -11,6 +11,8 @@ torch.set_default_dtype(torch.float64)
 
 import MC_sim 
 import numpy as np
+#import matplotlib
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import argparse
@@ -19,9 +21,9 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-n_steps = 100
+n_steps = 150
 
-mode = 'mle' # args.mode
+mode = 'datagen' # args.mode
 print(f"mode = '{mode}'")
 base_dir = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'
@@ -84,12 +86,13 @@ elif mode == 'plot':
     xarr = np.arange(n_steps)
     plt.plot(xarr, MSE_KNet, color = 'red', label = 'Kalman net')
     plt.plot(xarr, MSE_maxLK, color = 'blue', label = 'MLE')
-    plt.title("KF MSE comparison with NN vs MLE learned parameters ")
+    #plt.title("KF MSE comparison with NN vs MLE learned parameters ")
     plt.xlabel('Time Step')
-    plt.ylabel('Average RMSE')
+    plt.ylabel('RMSE')
     plt.legend()
     plt.grid()
-    plt.savefig(fname_plot)
+    #plt.savefig('fname_plot')
+    plt.savefig("testfig", format="svg")
     plt.show()
     print("generating plots done")
 
