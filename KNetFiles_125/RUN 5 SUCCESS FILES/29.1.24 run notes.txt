@@ -1,0 +1,55 @@
+KNet_Pipeline.setTrainingParams(n_Epochs=400, n_Batch=50, learningRate=1E-3, weightDecay=1E-5)
+
+# Number of Training Examples
+N_E = 1000
+
+# Number of Cross Validation Examples
+N_CV = 400
+
+N_T = 200
+
+# Sequence Length for Linear Case
+T = 100
+T_test = 100
+
+
+mean_ini = np.array([0, 2, 0, 2])
+P_ini = np.diag([1, 0.1, 1, 0.1])
+chol_ini = np.linalg.cholesky(P_ini)
+
+
+# Nearly constant velocity model
+T = 0.5 # sampling time
+F = np.array([[1, T, 0, 0], 
+              [0, 1, 0, 0],
+              [0, 0, 1, T],
+              [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
+sigma_u = 0.001 # standard deviation of the acceleration    ####
+Q = np.array([[T**3/3, T**2/2, 0, 0], 
+              [T**2/2, T, 0, 0],
+              [0, 0, T**3/3, T**2/2],
+              [0, 0, T**2/2, T]], dtype = np.float64) * sigma_u**2 # covariance of the process noise
+
+chol_Q = np.linalg.cholesky(Q) # Cholesky decomposition of Q
+r = 1.0 #rms of standard normal dist
+
+# Measurement model
+H = np.array([[1, 0, 0, 0],
+              [0, 0, 1, 0]], dtype = np.float64) # measurement matrix
+R = 0.5 * np.diag([1, 1]).astype(dtype= np.float64) # covariance of the measurement noise ###
+chol_R = np.linalg.cholesky(R) # Cholesky decomposition of R
+
+##initisalisng space on device (CPU)
+if torch.cuda.is_available():
+   dev = torch.device("cuda:0")  # you can continue going on here, like cuda:1 cuda:2....etc.
+   torch.set_default_tensor_type('torch.cuda.FloatTensor')
+   print('Running on CUDA')
+else:
+   dev = torch.device("cpu")
+   print("Running on the CPU")
+
+m = 4
+n = 2
+
+m1_0 = torch.zeros((m,1), dtype = torch.float64).to(dev) #dtype = torch.float32
+m2_0 = 0 * 0 * torch.eye(m, dtype = torch.float64).to(dev)
