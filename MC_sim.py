@@ -24,7 +24,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
-sigma_u = 0.001 # standard deviation of the acceleration    ####
+sigma_u = 0.5 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -92,6 +92,8 @@ class MonteCarloSimulation:
         self.seed = seed if seed > 0 else 0
         self.mean_ini = mean_ini
         self.dataFilename = self.folderName + fileName
+        self.MLETrajFilename = self.folderName + fileName + '_MLETraj.npy'
+        self.KNetTrajFilename = self.folderName + fileName + '_KNetTraj.npy'
         
         today = datetime.today()
         now = datetime.now()
@@ -133,8 +135,8 @@ class MonteCarloSimulation:
             # Generate measurement (adding noise with rms = 1, see r above)
             self.measurements[:, k] = np.dot(H, self.X_true[:, k]) + np.dot(chol_R, np.random.randn(2))
         
-        print('x_true_15', self.X_true[:, 1], 'shape=', self.X_true[:, 1].shape )
-        print('x_true_16', self.X_true[:, 2])
+        #print('x_true_15', self.X_true[:, 1], 'shape=', self.X_true[:, 1].shape )
+        #print('x_true_16', self.X_true[:, 2])
                
     def generateSequenceTorch(
             self
@@ -240,8 +242,9 @@ class MonteCarloSimulation:
         KNet_Pipeline.setssModel(sys_model)
         KNet_model = KalmanNetNN()
         KNet_model.Build(sys_model)
+        print(KNet_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs=450, n_Batch=50, learningRate=1E-4, weightDecay=1E-5)
+        KNet_Pipeline.setTrainingParams(n_Epochs=100, n_Batch=50, learningRate=1E-3, weightDecay=1E-5)
 
         #Generate Training and validation sequences
         
@@ -316,6 +319,8 @@ class MonteCarloSimulation:
                 n_points+=1.0
             
         self.mle_K_est_out = kalman_est
+        np.save(self.MLETrajFilename, kalman_est)
+        
         self.test_target = test_target.cpu().numpy()
         print('mle_K_est_out shape', self.mle_K_est_out.shape)
         print('test target shape mle', self.test_target.shape)
@@ -340,6 +345,8 @@ class MonteCarloSimulation:
         print('MSEavgShape', KNet_Pipeline.MSE_test_linear_arr.shape)
 
         self.KNet_est_out = x_out_test.detach().cpu().numpy()
+        np.save(self.KNetTrajFilename, self.KNet_est_out)
+        
         self.test_target = test_target.cpu().numpy()
         print("Kalman Filter KNET done shape", self.KNet_est_out.shape)
         
@@ -415,21 +422,66 @@ class MonteCarloSimulation:
         
         plt.figure()
         
-        print('xtrue shape', X_True.shape)
+        print('mlextrue', X_True.shape)
+        #print('xtrue shape', X_True.shape)
         for s in range(0, 9): #X_True.shape[0]):
             
             X_True_ssvec = X_True[s,:,:]
             X_gen_ssvec = X_gen[s,:,:]
             
-            plt.plot(X_True_ssvec[0], X_True_ssvec[2])# label=f't={t}, s={s}')
-            plt.plot(X_gen_ssvec[0], X_gen_ssvec[2])# label=f't={t}, s={s}')
-            
-            print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
+            if s==0:
+                plt.plot(X_True_ssvec[0], X_True_ssvec[2], color = 'r', label = 'ground truth')# label=f't={t}, s={s}')
+                plt.plot(X_gen_ssvec[0], X_gen_ssvec[2], color = 'b', label = 'KF estimate')# label=f't={t}, s={s}')
+            else:
+                plt.plot(X_True_ssvec[0], X_True_ssvec[2], color = 'r')# label=f't={t}, s={s}')
+                plt.plot(X_gen_ssvec[0], X_gen_ssvec[2], color = 'b')# label=f't={t}, s={s}')
+            plt.legend()
+            #print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
                 
-        plt.xlabel('X[0]')
-        plt.ylabel('X[2]')
-        plt.title('Superimposed Trajectories (True vs Generated)')
+        plt.xlabel('$x$')
+        plt.ylabel('$y$')
+        #plt.title('Superimposed Trajectories (True vs Generated)')
         #plt.legend()  # Show a legend with labels for each trajectory
+        #folderpath = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_18/'
+        #plotname
+        plt.savefig('mletraj.eps', format = 'eps')
+        plt.show()
+        return 
+    
+    def plotAllTraj(
+            self,
+            X_True: np.array,
+            X_gen_KNet: np.array,
+            X_gen_MLE: np.array,
+            ) -> None:
+        
+        plt.figure()
+        
+        print('xTrue2 shape', X_True.shape)
+        for r in range(0, 9): #X_True.shape[0]):
+            
+            print('X_True=', X_True)
+            print('x_gen_KNet shaoe', X_gen_KNet.shape)
+            
+            X_True_ssvec = X_True[r,:,:]
+            X_gen_KNet_ssvec = X_gen_KNet[r,:,:]
+            X_gen_MLE_ssvec = X_gen_MLE[r,:,:]
+            
+            
+            if r==0:
+                plt.plot(X_True_ssvec[0], X_True_ssvec[2], color = 'r', label = 'ground truth')# label=f't={t}, s={s}')
+                plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[2], color = 'b', label = 'KalmanNet')
+                plt.plot(X_gen_MLE_ssvec[0], X_gen_MLE_ssvec[2], color = 'g', label = 'Kalman-MLE')# label=f't={t}, s={s}')
+                plt.legend()
+            #print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
+                
+        plt.xlabel('$x$')
+        plt.ylabel('$y$')
+        #plt.title('Superimposed Trajectories (True vs Generated)')
+        #plt.legend()  # Show a legend with labels for each trajectory
+        #folderpath = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_18/'
+        #plotname
+        #plt.savefig('mletraj.eps', format = 'eps')
         plt.show()
         return 
     
@@ -443,9 +495,21 @@ class MonteCarloSimulation:
     def allTrajMLE(
             self
             ) -> None: 
-        
+    
         return self.saveOutTraj(self.test_target, self.mle_K_est_out)
-            
+
+       
+    def runPlotALL(
+            self
+            ) -> None:
+        [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader(self.dataFilename)
+        
+        KNet_est_out = np.load(self.KNetTrajFilename)
+        kalman_est_mle = np.load(self.MLETrajFilename)
+        test_target_arr = test_target.cpu().numpy() 
+        
+        return self.plotAllTraj(test_target_arr, KNet_est_out, kalman_est_mle)
+    
  #   X_gen_ssvec = X_gen[s,:,t]
     
 """    

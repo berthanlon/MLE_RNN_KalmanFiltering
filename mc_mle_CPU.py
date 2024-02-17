@@ -21,9 +21,9 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-n_steps = 150
-
-mode = 'datagen' # args.mode
+n_steps = 18
+ 
+mode = 'plot' # args.mode
 print(f"mode = '{mode}'")
 base_dir = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'
@@ -77,6 +77,9 @@ elif mode == 'mle':
     
 elif mode == 'plot':
     print("generating plots")
+    mcs_plt = MC_sim.MonteCarloSimulation(n_steps, base_dir, fname_data, 313) 
+    mcs_plt.runPlotALL()
+    
     MSE_KNet_torch = torch.load(fname_mse_KNet)
     MSE_KNet = MSE_KNet_torch.cpu().numpy()
     
@@ -84,15 +87,17 @@ elif mode == 'plot':
     MSE_maxLK = MSE_maxLK_torch.cpu().numpy()
     
     xarr = np.arange(n_steps)
-    plt.plot(xarr, MSE_KNet, color = 'red', label = 'Kalman net')
-    plt.plot(xarr, MSE_maxLK, color = 'blue', label = 'MLE')
+    plt.plot(xarr, MSE_KNet, color = 'red', label = 'KalmanNet')
+    plt.plot(xarr, MSE_maxLK, color = 'blue', label = 'Kalman-MLE')
+    plt.xlim(0,n_steps-1)
+    plt.ylim(0,None)
     #plt.title("KF MSE comparison with NN vs MLE learned parameters ")
     plt.xlabel('Time Step')
     plt.ylabel('RMSE')
     plt.legend()
     plt.grid()
     #plt.savefig('fname_plot')
-    plt.savefig("testfig", format="svg")
+    plt.savefig(f'{fname_plot}.eps',format="eps")
     plt.show()
     print("generating plots done")
 
