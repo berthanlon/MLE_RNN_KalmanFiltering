@@ -24,7 +24,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
-sigma_u = 0.5 # standard deviation of the acceleration    ####
+sigma_u = 0.001 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -244,7 +244,7 @@ class MonteCarloSimulation:
         KNet_model.Build(sys_model)
         print(KNet_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs=100, n_Batch=50, learningRate=1E-3, weightDecay=1E-5)
+        KNet_Pipeline.setTrainingParams(n_Epochs=200, n_Batch=50, learningRate=1E-3, weightDecay=1E-5)
 
         #Generate Training and validation sequences
         
@@ -361,6 +361,8 @@ class MonteCarloSimulation:
         """
     
         mse_T = np.zeros(X_True.shape[2])
+        square_errors_sum = np.zeros(X_True.shape[2])
+        
         print('mse_T initialised with shape = ', mse_T.shape)
         print('X_gen.shape', X_gen.shape)
         
@@ -380,12 +382,18 @@ class MonteCarloSimulation:
                  
                 resid_squaresum += resid_x**2 + resid_y**2
          
+            
             rmse = np.sqrt( resid_squaresum / X_True.shape[0]) 
-            
-            
+            #totalrmse = residsquaresum
+            square_errors_sum[t] = resid_squaresum
             mse_T[t] = rmse 
+            #print('MSE-t[t]', mse_T)
         
-        return mse_T
+        overall_rmse = (np.sum(square_errors_sum)) / (X_True.shape[2]*X_True.shape[0])
+        
+        print('NEW OVERALL RMSE=', overall_rmse)
+        
+        return mse_T 
         
     
         #print(f"rmse:\n{rmse}")
@@ -451,27 +459,31 @@ class MonteCarloSimulation:
     def plotAllTraj(
             self,
             X_True: np.array,
+            measurements: np.array,
             X_gen_KNet: np.array,
             X_gen_MLE: np.array,
             ) -> None:
         
         plt.figure()
         
-        print('xTrue2 shape', X_True.shape)
+        #print('xTrue2 shape', X_True.shape)
         for r in range(0, 9): #X_True.shape[0]):
             
-            print('X_True=', X_True)
-            print('x_gen_KNet shaoe', X_gen_KNet.shape)
+            #print('X_True=', X_True)
+            #print('x_gen_KNet shaoe', X_gen_KNet.shape)
             
             X_True_ssvec = X_True[r,:,:]
+            measurements_ssvec = measurements[r,:,:]
             X_gen_KNet_ssvec = X_gen_KNet[r,:,:]
             X_gen_MLE_ssvec = X_gen_MLE[r,:,:]
             
             
+            
             if r==0:
-                plt.plot(X_True_ssvec[0], X_True_ssvec[2], color = 'r', label = 'ground truth')# label=f't={t}, s={s}')
-                plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[2], color = 'b', label = 'KalmanNet')
+                plt.plot(X_True_ssvec[0], X_True_ssvec[2], color = 'k', label = 'ground truth')# label=f't={t}, s={s}')
+                plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[2], color = 'r', label = 'KalmanNet')
                 plt.plot(X_gen_MLE_ssvec[0], X_gen_MLE_ssvec[2], color = 'g', label = 'Kalman-MLE')# label=f't={t}, s={s}')
+                plt.scatter(measurements_ssvec[0], measurements_ssvec[1], color = 'b', label = 'measurements', marker = 'x')
                 plt.legend()
             #print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
                 
@@ -481,7 +493,8 @@ class MonteCarloSimulation:
         #plt.legend()  # Show a legend with labels for each trajectory
         #folderpath = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_18/'
         #plotname
-        #plt.savefig('mletraj.eps', format = 'eps')
+        plt.savefig('AllTraj18.eps', format = 'eps')
+        plt.savefig('AllTraj18.png', format = 'png')
         plt.show()
         return 
     
@@ -507,8 +520,12 @@ class MonteCarloSimulation:
         KNet_est_out = np.load(self.KNetTrajFilename)
         kalman_est_mle = np.load(self.MLETrajFilename)
         test_target_arr = test_target.cpu().numpy() 
+        test_input_arr = test_input.cpu().numpy()
         
-        return self.plotAllTraj(test_target_arr, KNet_est_out, kalman_est_mle)
+        
+        print('testinput shape', test_input_arr.shape)
+        
+        return self.plotAllTraj(test_target_arr, test_input_arr, KNet_est_out, kalman_est_mle)
     
  #   X_gen_ssvec = X_gen[s,:,t]
     

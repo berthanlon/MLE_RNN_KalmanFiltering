@@ -14,6 +14,7 @@ import numpy as np
 #import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 import pandas as pd
 import argparse
 
@@ -23,7 +24,7 @@ import argparse
 
 n_steps = 18
  
-mode = 'plot' # args.mode
+mode = 'mle' # args.mode
 print(f"mode = '{mode}'")
 base_dir = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'
@@ -56,9 +57,9 @@ elif mode == 'knet':
     
     mcs_train.allTrajKNet()
     
-    average_KNet = np.mean(MSE_KNet)
+    #average_KNet = np.mean(MSE_KNet)
     endTS = pd.Timestamp.utcnow()
-    print(f"computing mses for knet done, time taken = {endTS - startTS}, average_KNet = {average_KNet}")
+    print(f"computing mses for knet done, time taken = {endTS - startTS}")
 
 elif mode == 'mle':
     print("generating mcs estimate of Q and R")
@@ -71,9 +72,9 @@ elif mode == 'mle':
     
     mcs_est.allTrajMLE()
     
-    average_maxLK = np.mean(MSE_maxLK)
+    #average_maxLK = np.mean(MSE_maxLK)
     endTS = pd.Timestamp.utcnow()
-    print(f"generating mcs estimate of Q and R done, time taken = {endTS - startTS}, average_maxLK = {average_maxLK}")
+    print(f"generating mcs estimate of Q and R done, time taken = {endTS - startTS}")
     
 elif mode == 'plot':
     print("generating plots")
