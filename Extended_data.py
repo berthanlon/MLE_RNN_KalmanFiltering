@@ -14,7 +14,7 @@ else:
 #######################
 ### Size of DataSet ###
 #######################
-
+"""
 # Number of Training Examples
 N_E = 1000
 
@@ -24,8 +24,9 @@ N_CV = 400
 N_T = 200
 
 # Sequence Length for Linear Case
-T = 100
-T_test = 100
+Tlen = 125
+Tlen_test = 125
+"""
 
 #################
 ## Design #10 ###
@@ -65,73 +66,38 @@ H = torch.eye(2)
 #m2_0 = torch.tensor([])
 
 
-#############
-### 5 x 5 ###
-#############
-# m = 5
-# n = 5
-# F = F10[0:m, 0:m]
-# H = H10[0:n, 10-m:10]
-# m1_0 = torch.zeros(m, 1).to(dev)
-# # m1x_0_design = torch.tensor([[1.0], [-1.0], [2.0], [-2.0], [0.0]]).to(dev)
-# m2_0 = 0 * 0 * torch.eye(m).to(dev)
+def DataGen_True(SysModel_data, fileName, Tlen):
 
-##############
-## 10 x 10 ###
-##############
-# m = 10
-# n = 10
-# F = F10[0:m, 0:m]
-# H = H10
-# m1_0 = torch.zeros(m, 1).to(dev)
-# # m1x_0_design = torch.tensor([[10.0], [-10.0]])
-# m2_0 = 0 * 0 * torch.eye(m).to(dev)
-
-# Inaccurate model knowledge based on matrix rotation
-'''
-alpha_degree = 10
-rotate_alpha = torch.tensor([alpha_degree/180*torch.pi]).to(dev)
-cos_alpha = torch.cos(rotate_alpha)
-sin_alpha = torch.sin(rotate_alpha)
-rotate_matrix = torch.tensor([[cos_alpha, -sin_alpha],
-                              [sin_alpha, cos_alpha]]).to(dev)
-# print(rotate_matrix)
-F_rotated = torch.mm(F,rotate_matrix) #inaccurate process model
-H_rotated = torch.mm(H,rotate_matrix) #inaccurate observation model
-'''
-
-def DataGen_True(SysModel_data, fileName, T):
-
-    SysModel_data.GenerateBatch(1, T, randomInit=False)
+    SysModel_data.GenerateBatch(1, Tlen, randomInit=False)
     test_input = SysModel_data.Input
     test_target = SysModel_data.Target
 
-    # torch.save({"True Traj":[test_target],
-    #             "Obs":[test_input]},fileName)
     torch.save([test_input, test_target], fileName)
 
-def DataGen(SysModel_data, fileName, T, T_test,randomInit=False):
+def DataGen(SysModel_data, fileName, Tlen, Tlen_test, args, randomInit=False):
 
     ##################################
     ### Generate Training Sequence ###
     ##################################
-    SysModel_data.GenerateBatch(N_E, T, randomInit=randomInit)
+    SysModel_data.GenerateBatch(args.N_E, Tlen, randomInit=randomInit)
     training_input = SysModel_data.Input
+    #print('ext data training input typoe', type(training_input))
     training_target = SysModel_data.Target
+    #print('ext data training target type', type(training_target))
 
-    print('training_input_sum', training_input)
-    print('training_target_sum', training_target)
+    #print('training_input_sum', training_input)
+    #print('training_target_sum', training_target)
     ####################################
     ### Generate Validation Sequence ###
     ####################################
-    SysModel_data.GenerateBatch(N_CV, T, randomInit=randomInit)
+    SysModel_data.GenerateBatch(args.N_CV, Tlen, randomInit=randomInit)
     cv_input = SysModel_data.Input
     cv_target = SysModel_data.Target
 
     ##############################
     ### Generate Test Sequence ###
     ##############################
-    SysModel_data.GenerateBatch(N_T, T_test, randomInit=randomInit)
+    SysModel_data.GenerateBatch(args.N_T, Tlen_test, randomInit=randomInit)
     test_input = SysModel_data.Input
     test_target = SysModel_data.Target
 
