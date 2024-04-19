@@ -237,12 +237,13 @@ class MonteCarloSimulation:
              
         print("Start KNet pipeline, KNet with full model info")
         KNet_Pipeline = Pipeline_KF(self.strTime, self.folderName, f"sysmodel_{self.args.nSteps}") #"sysmodel"
+        
         KNet_Pipeline.setssModel(sys_model)
         KNet_model = KalmanNetNN()
         KNet_model.NNBuild(sys_model, self.args)
         print(KNet_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(self.args)
+        KNet_Pipeline.setTrainingParams(n_Epochs= 200, n_Batch= self.args.n_batch, learningRate= self.args.lr, weightDecay=self.args.wd)
  
         #Generate Training and validation sequences
         
@@ -250,7 +251,7 @@ class MonteCarloSimulation:
             print("generating data and training model")
             DataGen(sys_model, self.dataFilename, t, t, self.args)
             [training_input, training_target, cv_input, cv_target, test_input, test_target] = DataLoader_GPU(self.dataFilename)
-            print('training_input, training_target, cv_input, cv_target, test_input, test_target', [training_input.shape, training_target.shape, cv_input.shape, cv_target.shape, test_input.shape, test_target.shape])
+            print('training_input type, training_target, cv_input, cv_target, test_input, test_target', [type(training_input), training_target.shape, cv_input.shape, cv_target.shape, test_input.shape, test_target.shape])
             KNet_Pipeline.NNTrain(self.args.N_E, training_input, training_target, self.args.N_CV, cv_input, cv_target)
             KNet_Pipeline.save()
             print(f"saved KNET pipeline-trained model, saved trained modelFileName = {KNet_Pipeline.modelFileName}")

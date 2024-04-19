@@ -81,9 +81,9 @@ def DataGen(SysModel_data, fileName, Tlen, Tlen_test, args, randomInit=False):
     ##################################
     SysModel_data.GenerateBatch(args.N_E, Tlen, randomInit=randomInit)
     training_input = SysModel_data.Input
-    #print('ext data training input typoe', type(training_input))
+    print('ext data training input typoe', type(training_input))
     training_target = SysModel_data.Target
-    #print('ext data training target type', type(training_target))
+    print('ext data training target type', type(training_target))
 
     #print('training_input_sum', training_input)
     #print('training_target_sum', training_target)

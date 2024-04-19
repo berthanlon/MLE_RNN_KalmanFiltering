@@ -18,17 +18,18 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 
 class SystemModel:
 
-    def __init__(self, F, Q, H, R, T, T_test, prior_Q=None, prior_Sigma=None, prior_S=None, outlier_p=0,rayleigh_sigma=10000):
+    def __init__(self, F, Q, H, r, T, T_test, prior_Q=None, prior_Sigma=None, prior_S=None, outlier_p=0,rayleigh_sigma=10000):
 
 
         self.outlier_p = outlier_p
         self.rayleigh_sigma = rayleigh_sigma
-        
-        ####################
+
+          ####################
         ### Motion Model ###
-        ####################
+        ####################       
         self.F = F
         self.m = self.F.size()[0]
+
         self.Q = Q
 
         #########################
@@ -36,15 +37,16 @@ class SystemModel:
         #########################
         self.H = H
         self.n = self.H.size()[0]
-        self.R = R
 
-        ################
-        ### Sequence ###
-        ################
-        # Assign T
+        self.r = r
+        self.R = r * r * torch.eye(self.n)
+
+        #Assign T and T_test
         self.T = T
         self.T_test = T_test
-
+        
+        self.trajGen = None
+        
         #########################
         ### Covariance Priors ###
         #########################
@@ -81,11 +83,11 @@ class SystemModel:
         self.x_prev = m1x_0
         self.m2x_0 = m2x_0
 
-    def Init_batched_sequence(self, m1x_0_batch, m2x_0_batch):
+   # def Init_batched_sequence(self, m1x_0_batch, m2x_0_batch):
 
-        self.m1x_0_batch = m1x_0_batch
-        self.x_prev = m1x_0_batch
-        self.m2x_0_batch = m2x_0_batch
+   #     self.m1x_0_batch = m1x_0_batch
+   #     self.x_prev = m1x_0_batch
+   #     self.m2x_0_batch = m2x_0_batch
 
     #########################
     ### Update Covariance ###
@@ -96,39 +98,46 @@ class SystemModel:
 
         self.R = R
 
-    #########################
+       #########################
     ### Generate Sequence ###
     #########################
     def GenerateSequence(self, Q_gen, R_gen, T):
         # Pre allocate an array for current state
-        self.x = torch.zeros(size=[self.m, T])
+        self.x = torch.empty(size=[self.m, T])
         # Pre allocate an array for current observation
-        self.y = torch.zeros(size=[self.n, T])
+        self.y = torch.empty(size=[self.n, T])
         # Set x0 to be x previous
         self.x_prev = self.m1x_0
-        xt = self.x_prev
+        
+        
+        if self.trajGen is not None:
+            self.trajGen.generateSequenceTorch()
+            traj = self.trajGen.getTrajectoryArraysTorch()
+            self.x = traj["X_true"]
+            self.y = traj["measurements"]
+            self.x_prev = self.m1x_0 #need to update this if we want continuation sequences
+            return 
+        
+        
+        # Outliers
+        if self.outlier_p > 0:
+            b_matrix = torch.bernoulli(self.outlier_p *torch.ones(T))
 
         # Generate Sequence Iteratively
         for t in range(0, T):
-
             ########################
             #### State Evolution ###
-            ########################   
-            if torch.equal(Q_gen,torch.zeros(self.m,self.m)):# No noise
+            ########################            
+            # Process Noise
+            if self.q == 0:
+                xt = self.F.matmul(self.x_prev)            
+            else:
                 xt = self.F.matmul(self.x_prev)
-            elif self.m == 1: # 1 dim noise
-                xt = self.F.matmul(self.x_prev)
-                eq = torch.normal(mean=0, std=Q_gen)
-                # Additive Process Noise
-                xt = torch.add(xt,eq)
-            else:            
-                xt = self.F.matmul(self.x_prev)
-                mean = torch.zeros([self.m,self.m], dtype =Q_gen.dtype)
-                #print('mean shape', mean.shape)
+                mean = torch.zeros([self.m])              
                 distrib = MultivariateNormal(loc=mean, covariance_matrix=Q_gen)
                 eq = distrib.rsample()
                 # eq = torch.normal(mean, self.q)
-                #eq = torch.reshape(eq[:], xt.size())
+                eq = torch.reshape(eq[:],[self.m,1])
                 # Additive Process Noise
                 xt = torch.add(xt,eq)
 
@@ -136,32 +145,44 @@ class SystemModel:
             ### Emission ###
             ################
             # Observation Noise
-            if torch.equal(R_gen,torch.zeros(self.n,self.n)):# No noise
+            if self.r == 0:
+                yt = self.H.matmul(xt)           
+            else:
                 yt = self.H.matmul(xt)
-            elif self.n == 1: # 1 dim noise
-                yt = self.H.matmul(xt)
-                er = torch.normal(mean=0, std=R_gen)
-                # Additive Observation Noise
-                yt = torch.add(yt,er)
-            else:  
-                yt = self.H.matmul(xt)
-                mean = torch.zeros([self.n], dtype=R_gen.dtype)  #mean = torch.zeros([self.n,self.n], dtype = R_gen.dtype) 
-                #print('rgen', R_gen)
+                mean = torch.zeros([self.n])            
                 distrib = MultivariateNormal(loc=mean, covariance_matrix=R_gen)
                 er = distrib.rsample()
-                '''
-                print("mean shape:", mean.shape)
-                print("R_gen shape:", R_gen.shape)
-                print("er shape before reshape:", er.shape)
-                print('yt shape', yt.shape)
-                '''
                 er = torch.reshape(er[:],[self.n,1])
-                #er = torch.reshape(er[:], yt.size())   
+                # mean = torch.zeros([self.n,1])
+                # er = torch.normal(mean, self.r)
                 
-                #print('er reshaped', er.shape)
                 # Additive Observation Noise
                 yt = torch.add(yt,er)
+            
+            # Outliers
+            if self.outlier_p > 0:
+                if b_matrix[t] != 0:
+                    btdt = self.rayleigh_sigma*torch.sqrt(-2*torch.log(torch.rand(self.n,1)))
+                    yt = torch.add(yt,btdt)
 
+            ########################
+            ### Squeeze to Array ###
+            ########################
+
+            # Save Current State to Trajectory Array
+            self.x[:, t] = torch.squeeze(xt)
+
+            # Save Current Observation to Trajectory Array
+            self.y[:, t] = torch.squeeze(yt)
+
+            ################################
+            ### Save Current to Previous ###
+            ################################
+            self.x_prev = xt
+            print(xt)
+
+    print('Done generate sequence')
+    
             ########################
             ### Squeeze to Array ###
             ########################
@@ -173,11 +194,6 @@ class SystemModel:
 
             # Save Current Observation to Trajectory Array
             #self.y[:, t] = torch.squeeze(yt)
-
-            ################################
-            ### Save Current to Previous ###
-            ################################
-            self.x_prev = xt
 
     
     def SetTrajectoryGenerator(

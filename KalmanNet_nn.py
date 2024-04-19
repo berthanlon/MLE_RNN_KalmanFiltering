@@ -42,8 +42,6 @@ class KalmanNetNN(torch.nn.Module):
         self.prior_Sigma = prior_Sigma.to(self.device)
         self.prior_S = prior_S.to(self.device)
         
-
-
         # GRU to track Q
         self.d_input_Q = self.m * args.in_mult_KNet
         self.d_hidden_Q = self.m ** 2
@@ -126,48 +124,59 @@ class KalmanNetNN(torch.nn.Module):
     ###########################
     ### Initialize Sequence ###
     ###########################
-    def InitSequence(self, M1_0, T):
+    def InitSequence(self, M1_0):
         """
         input M1_0 (torch.tensor): 1st moment of x at time 0 [batch_size, m, 1]
         """
-        self.T = T
+        #self.T = T
 
         self.m1x_posterior = M1_0.to(self.device)
         self.m1x_posterior_previous = self.m1x_posterior
         self.m1x_prior_previous = self.m1x_posterior
-        self.y_previous = self.h(self.m1x_posterior)
+        self.y_previous = self.h @ self.m1x_posterior
 
     ######################
     ### Compute Priors ###
     ######################
     def step_prior(self):
         # Predict the 1-st moment of x
-        self.m1x_prior = self.f(self.m1x_posterior)
+        self.m1x_prior = self.f @ self.m1x_posterior
 
         # Predict the 1-st moment of y
-        self.m1y = self.h(self.m1x_prior)
+        self.m1y = self.h @ self.m1x_prior
 
     ##############################
     ### Kalman Gain Estimation ###
     ##############################
     def step_KGain_est(self, y):
         # both in size [batch_size, n]
-        obs_diff = torch.squeeze(y,2) - torch.squeeze(self.y_previous,2) 
-        obs_innov_diff = torch.squeeze(y,2) - torch.squeeze(self.m1y,2)
-        # both in size [batch_size, m]
-        fw_evol_diff = torch.squeeze(self.m1x_posterior,2) - torch.squeeze(self.m1x_posterior_previous,2)
-        fw_update_diff = torch.squeeze(self.m1x_posterior,2) - torch.squeeze(self.m1x_prior_previous,2)
+        y_ready = y 
+        self.y_previous_ready = torch.squeeze(self.y_previous, -1)
+        
+        #obs_diff = torch.squeeze(y,2) - torch.squeeze(self.y_previous,2) 
+        obs_diff = y_ready - self.y_previous_ready
 
-        obs_diff = func.normalize(obs_diff, p=2, dim=1, eps=1e-12, out=None)
-        obs_innov_diff = func.normalize(obs_innov_diff, p=2, dim=1, eps=1e-12, out=None)
-        fw_evol_diff = func.normalize(fw_evol_diff, p=2, dim=1, eps=1e-12, out=None)
-        fw_update_diff = func.normalize(fw_update_diff, p=2, dim=1, eps=1e-12, out=None)
+        #obs_innov_diff = torch.squeeze(y,2) - torch.squeeze(self.m1y,2)
+        obs_innov_diff = y_ready - torch.squeeze(self.m1y,-1)
+        
+        # both in size [batch_size, m]
+       
+        fw_evol_diff = torch.squeeze(self.m1x_posterior,-1) - torch.squeeze(self.m1x_posterior_previous,-1)
+        fw_update_diff = torch.squeeze(self.m1x_posterior,-1) - torch.squeeze(self.m1x_prior_previous,-1)
+
+        #print('sw evol diff.shape', fw_evol_diff.shape)
+
+        obs_diff = func.normalize(obs_diff, p=2, dim=0, eps=1e-12, out=None)
+        obs_innov_diff = func.normalize(obs_innov_diff, p=2, dim=0, eps=1e-12, out=None)
+        fw_evol_diff = func.normalize(fw_evol_diff, p=2, dim=0, eps=1e-12, out=None)
+        fw_update_diff = func.normalize(fw_update_diff, p=2, dim=0, eps=1e-12, out=None)
 
         # Kalman Gain Network Step
         KG = self.KGain_step(obs_diff, obs_innov_diff, fw_evol_diff, fw_update_diff)
 
         # Reshape Kalman Gain to a Matrix
         self.KGain = torch.reshape(KG, (self.batch_size, self.m, self.n))
+
 
     #######################
     ### Kalman Net Step ###
@@ -180,11 +189,30 @@ class KalmanNetNN(torch.nn.Module):
         # Compute Kalman Gain
         self.step_KGain_est(y)
 
+        print('m1y dim', self.m1y.shape)
+        
         # Innovation
         dy = y - self.m1y # [batch_size, n, 1]
 
+        print('dy before unsequeeze dim', dy.shape)
         # Compute the 1-st posterior moment
-        INOV = torch.bmm(self.KGain, dy)
+        #print('dy shape before squeeze', dy.shape)
+        #print('self.KGain shape', self.KGain.shape)
+        if dy.dim() == 2:  # Check if dy is 2D and needs to be expanded to 3D
+            dy = dy.unsqueeze(-1)  # Correctly adjusting dy to 3D if necessary
+
+        print("dy before shape:", dy.shape) 
+        # Only apply repeat if the shapes actually differ in the batch dimension
+        if dy.shape[0] != self.KGain.shape[0]:
+            repeat_factor = self.KGain.shape[0] // dy.shape[0]
+            dy_expanded = dy.repeat(repeat_factor, 1, 1)
+        else:
+            dy_expanded = dy
+            
+        print("Final shape of dy:", dy.shape)
+        print("Shape of dy_expanded:", dy_expanded.shape)
+        print("Shape of self.KGain:", self.KGain.shape)
+        INOV = torch.bmm(self.KGain, dy_expanded)
         self.m1x_posterior_previous = self.m1x_posterior
         self.m1x_posterior = self.m1x_prior + INOV
 
@@ -193,7 +221,7 @@ class KalmanNetNN(torch.nn.Module):
 
         # update y_prev
         self.y_previous = y
-
+        print('y shape', y.shape)
         # return
         return self.m1x_posterior
 

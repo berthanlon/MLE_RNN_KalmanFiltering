@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Nov 15 13:52:39 2023
 
-@author: sgbhanlo
-"""
 ######## RUN ON CPU VERSION 
 import torch
 import config 
@@ -30,7 +26,7 @@ args = config.general_settings()
 
 ### Dataset parameters
 args.N_E = 10
-args.N_CV = 4
+args.N_CV = 6
 args.N_T = 2
 #offset = 0 ### Init condition of dataset
 args.randomInit_train = False
@@ -46,7 +42,7 @@ args.Tlen_test = 5
 #KnownRandInit_test = True
 args.use_cuda = True # use GPU or not
 args.nSteps = 20
-args.n_batch = 10
+args.n_batch = 8
 args.lr = 1e-4
 args.wd = 1e-4
 
