@@ -22,11 +22,11 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-n_steps = 18
+n_steps = 20
  
-mode = 'mle' # args.mode
+mode = 'knet' # args.mode
 print(f"mode = '{mode}'")
-base_dir = f'C:/Users/betti/Desktop/MLE_KNET/MLE_RNN_KalmanFiltering-main/KNetFiles_{n_steps}/'
+base_dir = f'C:/Users/betti/Desktop/MLE_KNET_Range_bearing_a1/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'
 
 ###resid_squaresum = np.zeros(n_steps)
@@ -64,7 +64,7 @@ elif mode == 'knet':
 elif mode == 'mle':
     print("generating mcs estimate of Q and R")
     mcs_est = MC_sim.MonteCarloSimulation(n_steps, base_dir, fname_data, 313)
-    mcs_est.generateEstimatesMaxLk()
+    mcs_est.generateEstimatesMaxLk() 
     mcs_est.applyKalmanFilterMaxLk()
     MSE_maxLK = mcs_est.computeMSEMaxLk()
     MSE_maxLK_torch = torch.tensor(MSE_maxLK)

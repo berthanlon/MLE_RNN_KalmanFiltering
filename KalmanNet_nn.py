@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
-torch.set_default_dtype(torch.float64)
+torch.set_default_tensor_type(torch.FloatTensor) 
 
 class KalmanNetNN(torch.nn.Module):
 
@@ -19,7 +19,7 @@ class KalmanNetNN(torch.nn.Module):
     #############
     def Build(self, ssModel):
 
-        self.InitSystemDynamics(ssModel.F, ssModel.H)
+        self.InitSystemDynamics(ssModel.F, ssModel.h)
 
         # Number of neurons in the 1st hidden layer
         H1_KNet = (ssModel.m + ssModel.n) * (10) * 8
@@ -75,6 +75,7 @@ class KalmanNetNN(torch.nn.Module):
 
         # Iniatialize GRU Layer
         self.rnn_GRU = nn.GRU(self.input_dim, self.hidden_dim, self.n_layers)
+        
 
         ####################
         ### Hidden Layer ###
@@ -92,16 +93,16 @@ class KalmanNetNN(torch.nn.Module):
     ##################################
     ### Initialize System Dynamics ###
     ##################################
-    def InitSystemDynamics(self, F, H):
+    def InitSystemDynamics(self, F, h):
         # Set State Evolution Matrix
         self.F = F.to(self.device,non_blocking = True)
         self.F_T = torch.transpose(F, 0, 1)
         self.m = self.F.size()[0]
 
-        # Set Observation Matrix
-        self.H = H.to(self.device,non_blocking = True)
-        self.H_T = torch.transpose(H, 0, 1)
-        self.n = self.H.size()[0]
+        # Set Observation function
+        self.h = h  
+        #self.H_T = torch.transpose(H, 0, 1)
+        self.n = 2
 
     ###########################
     ### Initialize Sequence ###
@@ -123,17 +124,25 @@ class KalmanNetNN(torch.nn.Module):
         self.state_process_prior_0 = torch.matmul(self.F, self.state_process_posterior_0)
 
         # Compute the 1-st moment of y based on model knowledge and without noise
-        self.obs_process_0 = torch.matmul(self.H, self.state_process_prior_0)
+        self.obs_process_0 = self.h(self.state_process_prior_0.cpu().numpy()) #bh
 
         # Predict the 1-st moment of x
         self.m1x_prev_prior = self.m1x_prior
         self.m1x_prior = torch.matmul(self.F, self.m1x_posterior)
 
         # Predict the 1-st moment of y
-        self.m1y = torch.matmul(self.H, self.m1x_prior)
+        m1y_numpy = self.h(self.m1x_prior.detach().cpu().numpy())  #bh
+        #print(' self.m1y', type(self.m1y))
+        m1y_tensor =  torch.from_numpy(m1y_numpy)
+        
+        # Check if CUDA is available and move the tensor to GPU
+        if torch.cuda.is_available():
+            m1y_tensor = m1y_tensor.to('cuda')
 
+        # Store the converted and possibly moved tensor
+        self.m1y = m1y_tensor
 
-    ##############################
+    #############################S#
     ### Kalman Gain Estimation ###
     ##############################
     def step_KGain_est(self, y):
@@ -166,6 +175,7 @@ class KalmanNetNN(torch.nn.Module):
         self.step_prior()
 
         # Compute Kalman Gain
+        #print('kgain y type', y)
         self.step_KGain_est(y)
 
         # Innovation
@@ -188,14 +198,20 @@ class KalmanNetNN(torch.nn.Module):
         ### Input Layer ###
         ###################
         L1_out = self.KG_l1(KGainNet_in);
-        La1_out = self.KG_relu1(L1_out);
+        La1_out = self.KG_relu1(L1_out).float();
 
         ###########
         ### GRU ###
         ###########
-        GRU_in = torch.empty(self.seq_len_input, self.batch_size, self.input_dim).to(self.device,non_blocking = True)
+        GRU_in = KGainNet_in.float()
+        
+        self.hn = self.hn.to(dtype=torch.float32)
+        #print('self.hn_type', self.hn.dtype)
+        #GRU_in = torch.empty(self.seq_len_input, self.batch_size, self.input_dim).to(self.device,non_blocking = True)
+        GRU_in = torch.empty(self.seq_len_input, self.batch_size, self.input_dim, device=self.device, dtype=torch.float32)
         GRU_in[0, 0, :] = La1_out
         #print('type GRUin, selfhn', GRU_in.dtype, self.hn.dtype)
+        
         GRU_out, self.hn = self.rnn_GRU(GRU_in, self.hn.to(dtype = torch.float32))              #Bert
         #print('type ',)
         GRU_out_reshape = torch.reshape(GRU_out, (1, self.hidden_dim))

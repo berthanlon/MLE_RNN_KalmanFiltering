@@ -13,7 +13,7 @@ from Pipeline_KF import Pipeline_KF
 from KalmanNet_nn import KalmanNetNN
 from Extended_data import DataGen,DataLoader, DataLoader_GPU, N_E, N_CV, N_T
 
-mean_ini = np.array([0, 2, 0, 2])
+mean_ini = np.array([100, 1, 0, 2])
 P_ini = np.diag([1, 0.1, 1, 0.1])
 chol_ini = np.linalg.cholesky(P_ini)
 
@@ -33,11 +33,10 @@ Q = np.array([[T**3/3, T**2/2, 0, 0],
 chol_Q = np.linalg.cholesky(Q) # Cholesky decomposition of Q
 r = 1.0 #rms of standard normal dist
 
-# Measurement model
-H = np.array([[1, 0, 0, 0],
-              [0, 0, 1, 0]], dtype = np.float64) # measurement matrix
-R = 0.5 * np.diag([1, 1]).astype(dtype= np.float64) # covariance of the measurement noise ###
+
+R = np.diag([2, (0.1*np.pi/180)**2]) # covariance of the measurement noise
 chol_R = np.linalg.cholesky(R) # Cholesky decomposition of R
+
 
 ##initisalisng space on device (CPU)
 if torch.cuda.is_available():
@@ -88,6 +87,7 @@ class MonteCarloSimulation:
         self.mle_K_est_out = np.array([])
         self.KNet_est_out = np.array([])
         self.test_target = np.array([])
+        self.range_bear = np.array([])
         self.folderName = baseDir
         self.seed = seed if seed > 0 else 0
         self.mean_ini = mean_ini
@@ -103,6 +103,49 @@ class MonteCarloSimulation:
         print("Current Time =", self.strTime)
         print(f'Initialised MC object, nSteps = {nSteps}, fileName = {fileName}, seed = {seed}')
 
+    
+    def h(
+        self,
+        x: np.array,
+        ) -> np.array:
+        '''
+        Function h to map state into polar
+        '''
+            
+        r = np.sqrt((x[0])**2 + (x[2])**2)
+        theta = np.arctan2(x[2],x[0])
+        
+        self.range_bear = np.array([r, theta])
+        
+        return self.range_bear
+    
+    def h_torch(
+            self,
+            x: np.array,
+            ) -> torch.Tensor:
+        '''
+        Convert measurement output into torch tensor format
+        '''
+            
+        print('h_torch_x', x)
+        
+        range_bear_result = self.h(x)
+        range_bear_torch = torch.tensor(range_bear_result)
+        
+        return range_bear_torch
+    
+    def jacobian_h(
+            self,
+            x: np.array,
+            ) -> np.array:
+       
+        r = np.sqrt(x[0]**2 + x[2]**2)
+        
+        return np.array([
+            [x[0] / (r), 0, x[2] / (r), 0],
+            [-x[2] / (r**2), 0, x[0] / (r**2 ), 0] ])
+
+    
     def generateTrajectory(
             self, 
             meanIni: np.array = None
@@ -124,7 +167,7 @@ class MonteCarloSimulation:
         self.X_true[:, 0] = meanIni + np.dot(chol_ini, np.random.randn(4))
         
         # Generate measurements
-        self.measurements[:, 0] = np.dot(H,  self.X_true[:, 0]) + np.dot(chol_R, np.random.randn(2)) 
+        self.measurements[:, 0] = self.h(self.X_true[:, 0]) + np.dot(chol_R, np.random.randn(2))
         
         # Generate the complete trajectory and measurements
         for k in range(1, self.nSteps):
@@ -132,9 +175,10 @@ class MonteCarloSimulation:
             
             self.X_true[:, k] = np.dot(F,  self.X_true[:, k-1]) + np.dot(chol_Q, np.random.randn(4))
             
+            
             # Generate measurement (adding noise with rms = 1, see r above)
-            self.measurements[:, k] = np.dot(H, self.X_true[:, k]) + np.dot(chol_R, np.random.randn(2))
-        
+            self.measurements[:, k] = self.h(self.X_true[:, k]) + np.dot(chol_R, np.random.randn(2))
+            
         #print('x_true_15', self.X_true[:, 1], 'shape=', self.X_true[:, 1].shape )
         #print('x_true_16', self.X_true[:, 2])
                
@@ -142,7 +186,6 @@ class MonteCarloSimulation:
             self
             ) -> None:
         self.generateTrajectory()
-        
         
     def getTrajectoryArrays(
             self
@@ -191,7 +234,7 @@ class MonteCarloSimulation:
                     
                 X_diff_Q_sum += X_diff_mat.T @ X_diff_mat # for the Covariance of the vectors
                 
-                z_diff = (measurements_gen[:,k])-(H @ Xik) # Prediction error
+                z_diff = (measurements_gen[:,k])-(self.h(Xik)) # Prediction error
                 
                 z_diff_mat = np.asmatrix(z_diff)
                 
@@ -230,13 +273,12 @@ class MonteCarloSimulation:
         sys_model = SystemModel(
             torch.tensor(F), #dtype = torch.float32
             torch.tensor(Q), #dtype = torch.float32
-            torch.tensor(H), #dtype = torch.float32
+            self.h, #_torch, #dtype = torch.float32
             torch.tensor(r), #dtype = torch.float32
             t, t)
         sys_model.InitSequence(m1_0, m2_0)
         sys_model.SetTrajectoryGenerator(self)
              
-    
         print("Start KNet pipeline, KNet with full model info")
         KNet_Pipeline = Pipeline_KF(self.strTime, self.folderName, f"sysmodel_{self.nSteps}") #"sysmodel"
         KNet_Pipeline.setssModel(sys_model)
@@ -244,7 +286,7 @@ class MonteCarloSimulation:
         KNet_model.Build(sys_model)
         print(KNet_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs=200, n_Batch=50, learningRate=1E-3, weightDecay=1E-5)
+        KNet_Pipeline.setTrainingParams(n_Epochs=30, n_Batch=8, learningRate=1E-3, weightDecay=1E-5)
 
         #Generate Training and validation sequences
         
@@ -280,41 +322,33 @@ class MonteCarloSimulation:
         for s in range(0, test_target.shape[0]):
             
             x_k = mean_ini # initial state estimate
-            x_k_o = mean_ini
+            print('x_k prior', x_k)
             P_k = P_ini # initial covariance estimate
-            P_k_o = P_ini
 
-            kalman_est_o = np.zeros((4, self.nSteps))
-            
+
             X_true_gen = test_target[s,:,:].cpu().numpy()
             #print('x_treue_gen', X_true_gen)
             measurements_gen = test_input[s,:,:].cpu().numpy()
             
             
-            #print('test input shape', test_input.shape)
-            for k in range(0, test_target.shape[2]):    
+            for k in range(0, test_target.shape[2]):
+                #print('X_k', x_k)
+                H_k = self.jacobian_h(x_k)
+                #print('H_k', H_k)
                 # Update step
-                K_gain = P_k @ H.T @ np.linalg.inv( (H @ P_k @ H.T) + self.R_est)
-                K_gain_orig = P_k_o @ H.T @ np.linalg.inv( (H @ P_k_o @ H.T) + R)
-                #print('KGain', K_gain)
-                
-                x_u = x_k + K_gain @ (measurements_gen[:, k] - H @ x_k) # updated state estimate
-                x_u_orig = x_k_o + K_gain_orig @ (measurements_gen[:, k] - H @ x_k_o)
-                
-                P_u = (np.eye(4) - K_gain @ H) @ P_k # updated covariance estimate
-                P_u_o = (np.eye(4) - K_gain_orig @ H) @ P_k_o
+                S_k = H_k @ P_k @ H_k.T + self.R_est  # Measurement prediction covariance
+                K_gain = P_k @ H_k.T @ np.linalg.inv(S_k)  # Kalman Gain
+                 
+                # measurement update step
+                y_k = measurements_gen[:, k] - self.h(x_k)  # Innovation or measurement residual
+                x_u = x_k + K_gain @ y_k  # Updated state estimate # updated state estimate
+                P_u =  (np.eye(len(x_k)) - K_gain @ H_k) @ P_k  # Updated covariance estimate
                 
                 kalman_est[s, :, k] = x_u # Filtered estimate kalman_est = x_u
-                kalman_est_o[:, k] = x_u_orig
-                        
-                
+                #print('Kalman_est', kalman_est)
                 # Predict step
-            
                 x_k = F @ x_u      # predicted state estimate
                 P_k = F @ P_u @ F.T + self.Q_est      # predicted covariance estimate
-                
-                x_k_o = F @ x_u_orig # predicted state estimate
-                P_k_o = F @ P_u_o @ F.T + Q # predicted covariance estimate
                 
                 n_points+=1.0
             
@@ -328,9 +362,8 @@ class MonteCarloSimulation:
             
         #print('kalman est', kalman_est)
         print(f"loading data and applying KalmanFilter - DONE, n_points = {n_points}")
-            
-    
-            
+     
+        
     def applyKalmanFilterKNet(
             self
             ) -> None:

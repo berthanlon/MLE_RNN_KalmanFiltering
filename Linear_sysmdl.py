@@ -3,7 +3,7 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 
 class SystemModel:
 
-    def __init__(self, F, Q, H, r, T, T_test, outlier_p=0,rayleigh_sigma=10000):
+    def __init__(self, F, Q, h, r, T, T_test, outlier_p=0,rayleigh_sigma=10000):
 
         self.outlier_p = outlier_p
         self.rayleigh_sigma = rayleigh_sigma
@@ -18,8 +18,8 @@ class SystemModel:
         #########################
         ### Observation Model ###
         #########################
-        self.H = H
-        self.n = self.H.size()[0]
+        self.h = h
+        self.n = 2    #bert
 
         self.r = r
         self.R = r * r * torch.eye(self.n)
