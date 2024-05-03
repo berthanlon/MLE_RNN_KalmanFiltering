@@ -82,7 +82,7 @@ class SystemModel:
         if self.outlier_p > 0:
             b_matrix = torch.bernoulli(self.outlier_p *torch.ones(T))
 
-        # Generate Sequence Iteratively
+         # Generate Sequence Iteratively
         for t in range(0, T):
             ########################
             #### State Evolution ###
@@ -105,8 +105,10 @@ class SystemModel:
             ################
             # Observation Noise
             if self.r == 0:
+                print('SELF H MATMUL', self.H)
                 yt = self.H.matmul(xt)           
             else:
+                print('SELF H MATMUL', self.H)
                 yt = self.H.matmul(xt)
                 mean = torch.zeros([self.n])            
                 distrib = MultivariateNormal(loc=mean, covariance_matrix=R_gen)
@@ -147,7 +149,6 @@ class SystemModel:
             trajGen
             ) -> None:
         self.trajGen = trajGen
-    
     
     ######################
     ### Generate Batch ###

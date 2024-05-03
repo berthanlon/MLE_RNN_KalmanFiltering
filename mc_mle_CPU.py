@@ -22,9 +22,9 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-n_steps = 20
- 
-mode = 'knet' # args.mode
+n_steps = 25
+
+mode = 'datagen' # args.mode
 print(f"mode = '{mode}'")
 base_dir = f'C:/Users/betti/Desktop/MLE_KNET_Range_bearing_a1/KNetFiles_{n_steps}/'
 fname_base = 'MCSim_test'

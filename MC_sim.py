@@ -13,8 +13,8 @@ from Pipeline_KF import Pipeline_KF
 from KalmanNet_nn import KalmanNetNN
 from Extended_data import DataGen,DataLoader, DataLoader_GPU, N_E, N_CV, N_T
 
-mean_ini = np.array([100, 1, 0, 2])
-P_ini = np.diag([1, 0.1, 1, 0.1])
+mean_ini = np.array([100, 1, 0, 2], dtype = np.float64)
+P_ini = np.diag([1, 0.1, 1, 0.1], dtype = np.float64)
 chol_ini = np.linalg.cholesky(P_ini)
 
 
@@ -24,7 +24,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
-sigma_u = 0.001 # standard deviation of the acceleration    ####
+sigma_u = 0.01 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -50,10 +50,12 @@ else:
 m = 4
 n = 2
 
-m1_0 = torch.zeros((m,1), dtype = torch.float64).to(dev) #dtype = torch.float32
-m2_0 = 0 * 0 * torch.eye(m, dtype = torch.float64).to(dev)
+m1_0_flat = torch.tensor([100, 1, 0, 2], dtype = torch.float64) #torch.zeros((m,1), dtype = torch.float64).to(dev) #dtype = torch.float32
+m1_0 = m1_0_flat.view(4,1)
 
-print('M10,M20 DTYPE= ', m1_0.dtype, m2_0.dtype)
+m2_0 = torch.tensor(P_ini)    # 0 * 0 * torch.eye(m, dtype = torch.float64).to(dev)
+
+#print('M10,M20 DTYPE= ', m1_0.dtype, m2_0.dtype)
 # Number of Training Examples
 #N_E = 25
 
@@ -286,7 +288,7 @@ class MonteCarloSimulation:
         KNet_model.Build(sys_model)
         print(KNet_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs=30, n_Batch=8, learningRate=1E-3, weightDecay=1E-5)
+        KNet_Pipeline.setTrainingParams(n_Epochs= 150, n_Batch=30, learningRate=1E-3, weightDecay=1E-5)
 
         #Generate Training and validation sequences
         
@@ -465,7 +467,7 @@ class MonteCarloSimulation:
         
         print('mlextrue', X_True.shape)
         #print('xtrue shape', X_True.shape)
-        for s in range(0, 9): #X_True.shape[0]):
+        for s in range(0, X_True.shape[0]):
             
             X_True_ssvec = X_True[s,:,:]
             X_gen_ssvec = X_gen[s,:,:]
@@ -500,7 +502,7 @@ class MonteCarloSimulation:
         plt.figure()
         
         #print('xTrue2 shape', X_True.shape)
-        for r in range(0, 9): #X_True.shape[0]):
+        for r in range(0, 19): #X_True.shape[0]):
             
             #print('X_True=', X_True)
             #print('x_gen_KNet shaoe', X_gen_KNet.shape)
@@ -510,10 +512,10 @@ class MonteCarloSimulation:
             X_gen_KNet_ssvec = X_gen_KNet[r,:,:]
             X_gen_MLE_ssvec = X_gen_MLE[r,:,:]
             
-            
+            #print('X_True_ssvec', X_True_ssvec[0], X_True_ssvec[2])
             
             if r==0:
-                plt.plot(X_True_ssvec[0], X_True_ssvec[2], color = 'k', label = 'ground truth')# label=f't={t}, s={s}')
+                plt.scatter(X_True_ssvec[0], X_True_ssvec[2], color = 'k', label = 'ground truth')# label=f't={t}, s={s}')
                 plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[2], color = 'r', label = 'KalmanNet')
                 plt.plot(X_gen_MLE_ssvec[0], X_gen_MLE_ssvec[2], color = 'g', label = 'Kalman-MLE')# label=f't={t}, s={s}')
                 plt.scatter(measurements_ssvec[0], measurements_ssvec[1], color = 'b', label = 'measurements', marker = 'x')

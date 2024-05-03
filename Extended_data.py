@@ -16,16 +16,16 @@ else:
 #######################
 
 # Number of Training Examples
-N_E = 1000
+N_E = 200
 
 # Number of Cross Validation Examples
-N_CV = 400
+N_CV = 20
 
-N_T = 200
+N_T = 20
 
 # Sequence Length for Linear Case
-T = 20
-T_test = 20
+T = 25
+T_test = 25
 
 #################
 ## Design #10 ###
