@@ -21,7 +21,6 @@ def EKFTest(SysModel, test_input, test_target, modelKnowledge = 'full', allState
     EKF_out = torch.empty([N_T, SysModel.m, SysModel.T_test])
     start = time.time()
     for j in range(0, N_T):
-        #run n_t kf, 1 for each input trajectory
         EKF.GenerateSequence(test_input[j, :, :], EKF.T_test)
 
         if(allStates):

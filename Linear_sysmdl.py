@@ -3,7 +3,7 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 
 class SystemModel:
 
-    def __init__(self, F, Q, H, r, T, T_test, outlier_p=0,rayleigh_sigma=10000):
+    def __init__(self, F, q, H, r, T, T_test, outlier_p=0,rayleigh_sigma=10000):
 
         self.outlier_p = outlier_p
         self.rayleigh_sigma = rayleigh_sigma
@@ -13,7 +13,8 @@ class SystemModel:
         self.F = F
         self.m = self.F.size()[0]
 
-        self.Q = Q
+        self.q = q
+        self.Q = q * q * torch.eye(self.m)
 
         #########################
         ### Observation Model ###
@@ -27,9 +28,7 @@ class SystemModel:
         #Assign T and T_test
         self.T = T
         self.T_test = T_test
-        
-        self.trajGen = None
-        
+
     #####################
     ### Init Sequence ###
     #####################
@@ -67,16 +66,6 @@ class SystemModel:
         self.y = torch.empty(size=[self.n, T])
         # Set x0 to be x previous
         self.x_prev = self.m1x_0
-        
-        
-        if self.trajGen is not None:
-            self.trajGen.generateSequenceTorch()
-            traj = self.trajGen.getTrajectoryArraysTorch()
-            self.x = traj["X_true"]
-            self.y = traj["measurements"]
-            self.x_prev = self.m1x_0 #need to update this if we want continuation sequences
-            return 
-        
         
         # Outliers
         if self.outlier_p > 0:
@@ -124,6 +113,9 @@ class SystemModel:
                     btdt = self.rayleigh_sigma*torch.sqrt(-2*torch.log(torch.rand(self.n,1)))
                     yt = torch.add(yt,btdt)
 
+            
+
+
             ########################
             ### Squeeze to Array ###
             ########################
@@ -138,17 +130,7 @@ class SystemModel:
             ### Save Current to Previous ###
             ################################
             self.x_prev = xt
-            print(xt)
 
-    print('Done generate sequence')
-    
-    def SetTrajectoryGenerator(
-            self,
-            trajGen
-            ) -> None:
-        self.trajGen = trajGen
-    
-    
     ######################
     ### Generate Batch ###
     ######################

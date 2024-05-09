@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
-torch.set_default_dtype(torch.float64)
+
 
 class KalmanNetNN(torch.nn.Module):
 
@@ -43,7 +43,7 @@ class KalmanNetNN(torch.nn.Module):
         ### Input Layer ###
         ###################
         # Linear Layer
-        self.KG_l1 = torch.nn.Linear(D_in, H1, bias=True, dtype = torch.float64) 
+        self.KG_l1 = torch.nn.Linear(D_in, H1, bias=True)
 
         # ReLU (Rectified Linear Unit) Activation Function
         self.KG_relu1 = torch.nn.ReLU()
@@ -156,7 +156,7 @@ class KalmanNetNN(torch.nn.Module):
         KG = self.KGain_step(KGainNet_in)
 
         # Reshape Kalman Gain to a Matrix
-        self.KGain = torch.reshape(KG, (self.m, self.n)).to(dtype = torch.float64)
+        self.KGain = torch.reshape(KG, (self.m, self.n))
 
     #######################
     ### Kalman Net Step ###
@@ -195,9 +195,7 @@ class KalmanNetNN(torch.nn.Module):
         ###########
         GRU_in = torch.empty(self.seq_len_input, self.batch_size, self.input_dim).to(self.device,non_blocking = True)
         GRU_in[0, 0, :] = La1_out
-        #print('type GRUin, selfhn', GRU_in.dtype, self.hn.dtype)
-        GRU_out, self.hn = self.rnn_GRU(GRU_in, self.hn.to(dtype = torch.float32))              #Bert
-        #print('type ',)
+        GRU_out, self.hn = self.rnn_GRU(GRU_in, self.hn)
         GRU_out_reshape = torch.reshape(GRU_out, (1, self.hidden_dim))
 
         ####################
@@ -225,4 +223,4 @@ class KalmanNetNN(torch.nn.Module):
     def init_hidden(self):
         weight = next(self.parameters()).data
         hidden = weight.new(self.n_layers, self.batch_size, self.hidden_dim).zero_()
-        self.hn = hidden.data                                
+        self.hn = hidden.data
