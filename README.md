@@ -10,26 +10,7 @@
 
 This branch simulates architecture #1 in the linear case.
 
-* Linear case
-
-### Branch - new_architecture
-
-This branch simulates architecture #2 in our paper. There are two main files simulating the Discrete-Time and Decimation cases respectively.
-
-* Discrete-Time LA case
-
-```
-python3 main_lor_DT.py
-```
-
-* Decimated LA case
-
-```
-python3 main_lor_decimation.py
-```
-
-For pendulum, toy problem or real-world NCLT case, similarly, you could change the path_model parameter in filling_paths.py.
-
+* run_mc_mle is the main run file
 
 ## Introduction to other files
 
