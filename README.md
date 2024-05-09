@@ -8,24 +8,9 @@
 
 ### Branch - main
 
-This branch simulates architecture #1 in our paper. There are two main files simulating the linear and non-linear cases respectively.
+This branch simulates architecture #1 in the linear case.
 
 * Linear case
-
-```
-python3 main_linear.py
-```
-
-* Non-linear Lorenz Attractor(LA) case
-
-```
-python3 main_lorenz.py
-```
-
-* Non-linear pendulum, toy problem or real-world NCLT case
-
-change the path_model parameter in filling_paths.py accordingly and then run main_lorenz.py.
-
 
 ### Branch - new_architecture
 
