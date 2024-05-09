@@ -3,13 +3,6 @@ Theoretical Linear Kalman
 """
 import torch
 
-if torch.cuda.is_available():
-    dev = torch.device("cuda:0")  # you can continue going on here, like cuda:1 cuda:2....etc.
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
-else:
-   dev = torch.device("cpu")
-   print("Running on the CPU")
-
 class KalmanFilter:
 
     def __init__(self, SystemModel):
@@ -49,11 +42,7 @@ class KalmanFilter:
     def KGain(self):
         self.KG = torch.matmul(self.m2x_prior, self.H_T)
         self.KG = torch.matmul(self.KG, torch.inverse(self.m2y))
-        
-    def Q(self):
-        self.KG = torch.matmul(self.KG, torch.transpose(self.KG, 0, 1))
-        
-    
+
     # Innovation
     def Innovation(self, y):
         self.dy = y - self.m1y;
@@ -66,8 +55,6 @@ class KalmanFilter:
         # Compute the 2-nd posterior moment
         self.m2x_posterior = torch.matmul(self.m2y, torch.transpose(self.KG, 0, 1))
         self.m2x_posterior = self.m2x_prior - torch.matmul(self.KG, self.m2x_posterior)
-                
-        
 
     def Update(self, y):
         self.Predict();
@@ -81,14 +68,13 @@ class KalmanFilter:
         self.m1x_0 = m1x_0
         self.m2x_0 = m2x_0
 
-        #########################
-
+    #########################
     ### Generate Sequence ###
     #########################
     def GenerateSequence(self, y, T):
         # Pre allocate an array for predicted state and variance
-        self.x = torch.empty(size=[self.m, T]).to(dev)
-        self.sigma = torch.empty(size=[self.m, self.m, T]).to(dev)
+        self.x = torch.empty(size=[self.m, T])
+        self.sigma = torch.empty(size=[self.m, self.m, T])
 
         self.m1x_posterior = self.m1x_0
         self.m2x_posterior = self.m2x_0
@@ -98,3 +84,6 @@ class KalmanFilter:
             xt,sigmat = self.Update(yt);
             self.x[:, t] = torch.squeeze(xt)
             self.sigma[:, :, t] = torch.squeeze(sigmat)
+
+        return self.x
+        #print('self.x', self.x.shape)
