@@ -73,8 +73,8 @@ class MSECalculator:
         self,
         X_True: np.array,
         measurements: np.array,
-        #X_gen_KNet: np.array,
-        #X_gen_MLE: np.array,
+        #X_gen_KNet: np.array, #meas 1
+        X_gen_MLE: np.array,
         ) -> None:
         
         plt.figure()
@@ -87,14 +87,16 @@ class MSECalculator:
             
             X_True_ssvec = X_True[r,:,:]
             measurements_ssvec = measurements[r,:,:]
-         #   X_gen_KNet_ssvec = X_gen_KNet[r,:,:]
-          #  X_gen_MLE_ssvec = X_gen_MLE[r,:,:]
+          #  X_gen_KNet_ssvec = X_gen_KNet[r,:,:]
+            X_gen_MLE_ssvec = X_gen_MLE[r,:,:]
+           # first po = X_gen_MLE[r,:,:]
             
-            if r==199:
-                plt.plot(X_True_ssvec[0], X_True_ssvec[1], color = 'k', label = 'ground truth')# label=f't={t}, s={s}')
-          #      plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[1], color = 'r', label = 'KalmanNet')
-           #     plt.plot(X_gen_MLE_ssvec[0], X_gen_MLE_ssvec[1], color = 'g', label = 'Kalman-MLE')# label=f't={t}, s={s}')
-                plt.plot(measurements_ssvec[0], measurements_ssvec[1], color = 'g', label = 'measurements', marker = '*')
+            if r==179:
+                plt.plot(X_True_ssvec[0], X_True_ssvec[1], color = 'k', label = 'KF estimate')# label=f't={t}, s={s}')
+               # plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[1], color = 'r', label = 'fp')
+        # label=f't={t}, s={s}')
+                plt.plot(measurements_ssvec[0], measurements_ssvec[1], color = 'g', label = 'KNet estimate', marker = '.')
+                plt.scatter(X_gen_MLE_ssvec[0], X_gen_MLE_ssvec[1], color = 'b', label = 'measurements', marker = '*')
                 plt.legend()
             #print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
                 

@@ -6,11 +6,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os 
 from compute_MSE_class import MSECalculator
+from Extended_data import DataGen,DataLoader,DataLoader_GPU, Decimate_and_perturbate_Data,Short_Traj_Split
 
 # Get the current working directory
 #current_directory = os.getcwd()
 
 folder_path = 'result_arrays'
+
+dataFolderName = 'Simulations/Linear_canonical/H=I' + '/'
+dataFileName =  ['2x2_rq2040_T100.pt', '2x2_rq-1010_T100.pt' ]     
+
+[train_input, train_target, cv_input, cv_target, test_input, test_target] = DataLoader_GPU(dataFolderName + dataFileName[0])
+print('test_target', test_target.shape)
+
+test_input_np = test_input.detach().cpu().numpy()
+test_target_np = test_target.detach().cpu().numpy()
 
 # Construct full paths
 path_KF_state_est = os.path.join(folder_path, 'KF_state_est.pth')
@@ -35,28 +45,36 @@ KF_state_est_partial_np = KF_state_est_partial.detach().numpy()
 KNet_test_full_np = KNet_test_full.detach().numpy()
 #KNet_test_partial_np = KNet_test_partial.detach().numpy()
 
-print('KF_state_est_np', KF_state_est_np.shape)
-print('KNET_test_full_np', KNet_test_full_np.shape)
+#print('KF_state_est_np', KF_state_est_np.shape)
+#print('KNET_test_full_np', KNet_test_full_np.shape)
 
 mse_calculator = MSECalculator()
 
-full_model_mse = mse_calculator.computeMSEsForSequences(KF_state_est_np, KNet_test_full_np)
+KF_est_mse = mse_calculator.computeMSEsForSequences(test_input_np, KF_state_est_np)
+full_model_mse = mse_calculator.computeMSEsForSequences(test_input_np, KNet_test_full_np)
+
+
+
+
+
 #partial_model_mse = mse_calculator.computeMSEsForSequences(KF_state_est_partial_np, KNet_test_partial_np)
 #print('full_model_mse', full_model_mse.shape)
 
-print('KF_state_est_np', KF_state_est_np)
-print('KF_state_est_np shape', KF_state_est_np.shape)
+#print('KF_state_est_np', KF_state_est_np)
+#print('KF_state_est_np shape', KF_state_est_np.shape)
 
 
 #plt.plot(KF_state_est_np[0], KF_state_est_np[1])
 #plt.plot(KF_state_est_partial_np[0], KF_state_est_partial_np[1])
 
+print('test_TARGETTTTT target', test_target_np[0].shape)
+mse_calculator.plotAllTraj(KF_state_est_np, KNet_test_full_np, test_target_np)
 
-mse_calculator.plotAllTraj(KF_state_est_np, KNet_test_full_np)
-
-plt.xlim(1,100)
-plt.plot(np.arange(0,100,1), full_model_mse)
-plt.title('full model info, 50 epochs, r-1e-2')#
+plt.xlim(1,100) #100)
+plt.plot(np.arange(0,100,1), full_model_mse, label = 'KNET')
+plt.plot(np.arange(0,100,1), KF_est_mse, label = 'KF' )
+plt.legend()
+plt.title('full model info, 500 epochs, r-1e-2')#
 plt.xlabel('k')
 plt.ylabel('RMSE')
 plt.show()
