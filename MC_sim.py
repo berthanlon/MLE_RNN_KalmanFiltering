@@ -14,7 +14,8 @@ from KalmanNet_nn import KalmanNetNN
 from Extended_data import DataGen,DataLoader, DataLoader_GPU, N_E, N_CV, N_T
 
 mean_ini = np.array([100, 1, 0, 2], dtype = np.float64)
-P_ini = np.diag([1, 0.1, 1, 0.1], dtype = np.float64)
+
+P_ini = np.diag([1, 0.1, 1, 0.1]).astype(np.float64)
 chol_ini = np.linalg.cholesky(P_ini)
 
 
@@ -24,7 +25,7 @@ F = np.array([[1, T, 0, 0],
               [0, 1, 0, 0],
               [0, 0, 1, T],
               [0, 0, 0, 1]], dtype = np.float64) # state transition matrix
-sigma_u = 0.01 # standard deviation of the acceleration    ####
+sigma_u = 0.1 # standard deviation of the acceleration    ####
 Q = np.array([[T**3/3, T**2/2, 0, 0], 
               [T**2/2, T, 0, 0],
               [0, 0, T**3/3, T**2/2],
@@ -288,7 +289,7 @@ class MonteCarloSimulation:
         KNet_model.Build(sys_model)
         print(KNet_model)
         KNet_Pipeline.setModel(KNet_model)
-        KNet_Pipeline.setTrainingParams(n_Epochs= 150, n_Batch=30, learningRate=1E-3, weightDecay=1E-5)
+        KNet_Pipeline.setTrainingParams(n_Epochs= 800, n_Batch=30, learningRate=1E-3, weightDecay=1E-5)
 
         #Generate Training and validation sequences
         
@@ -515,10 +516,10 @@ class MonteCarloSimulation:
             #print('X_True_ssvec', X_True_ssvec[0], X_True_ssvec[2])
             
             if r==0:
-                plt.scatter(X_True_ssvec[0], X_True_ssvec[2], color = 'k', label = 'ground truth')# label=f't={t}, s={s}')
+                plt.scatter(X_True_ssvec[0], X_True_ssvec[2], color = 'k', label = 'ground truth', marker = '*')# label=f't={t}, s={s}')
                 plt.plot(X_gen_KNet_ssvec[0], X_gen_KNet_ssvec[2], color = 'r', label = 'KalmanNet')
                 plt.plot(X_gen_MLE_ssvec[0], X_gen_MLE_ssvec[2], color = 'g', label = 'Kalman-MLE')# label=f't={t}, s={s}')
-                plt.scatter(measurements_ssvec[0], measurements_ssvec[1], color = 'b', label = 'measurements', marker = 'x')
+                #plt.scatter(measurements_ssvec[0], measurements_ssvec[1], color = 'b', label = 'measurements', marker = 'x')
                 plt.legend()
             #print('trajectories', X_True_ssvec[0]) #, X_True_ssvec[2])
                 

@@ -22,7 +22,7 @@ import argparse
 #parser.add_argument('mode')
 #args = parser.parse_args()
 
-n_steps = 25
+n_steps = 100
 
 mode = 'datagen' # args.mode
 print(f"mode = '{mode}'")
